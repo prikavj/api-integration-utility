@@ -19,6 +19,5 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0-preview AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:80
-
-ENTRYPOINT ["dotnet", "ApiIntegration.Api.dll"] 
+# Heroku uses PORT environment variable
+CMD ASPNETCORE_URLS=http://*:$PORT dotnet ApiIntegration.Api.dll 
