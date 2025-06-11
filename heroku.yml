@@ -1,0 +1,17 @@
+setup:
+  addons:
+    - plan: heroku-postgresql:hobby-dev
+      as: DATABASE
+  config:
+    ASPNETCORE_ENVIRONMENT: Production
+    REACT_APP_API_URL: /api
+
+build:
+  docker:
+    web: frontend/Dockerfile
+    api: backend/Dockerfile
+
+release:
+  command:
+    - dotnet ef database update
+  image: api 
