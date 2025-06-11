@@ -1,0 +1,73 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Dependencies
+node_modules/
+/frontend/node_modules/
+/backend/*/bin/
+/backend/*/obj/
+
+# Build outputs
+/frontend/build/
+/frontend/dist/
+/backend/*/[Dd]ebug/
+/backend/*/[Rr]elease/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vs/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# .NET specific
+*.user
+*.userosscache
+*.userprefs
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/Properties/launchSettings.json
+
+# Testing
+/coverage
+.nyc_output
+TestResults/ 
