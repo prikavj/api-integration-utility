@@ -4,6 +4,10 @@ using System.Security.Cryptography;
 using System.Text;
 using ApiIntegration.Api.Data;
 using ApiIntegration.Api.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ApiIntegration.Api.Controllers;
 
@@ -12,10 +16,14 @@ namespace ApiIntegration.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(ApplicationDbContext context)
+    public AuthController(ApplicationDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _context = context;
+        _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpPost("register")]
@@ -29,7 +37,8 @@ public class AuthController : ControllerBase
         var user = new User
         {
             Username = request.Username,
-            PasswordHash = HashPassword(request.Password)
+            PasswordHash = HashPassword(request.Password),
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Users.Add(user);
@@ -49,8 +58,68 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid username or password");
         }
 
-        // TODO: Generate and return JWT token
-        return Ok(new { message = "Login successful" });
+        var token = GenerateJwtToken(user);
+        return Ok(new { token, message = "Login successful" });
+    }
+
+    [Authorize]
+    [HttpGet("profile")]
+    public async Task<IActionResult> GetProfile()
+    {
+        try
+        {
+            var username = User.FindFirst(ClaimTypes.Name)?.Value;
+            _logger.LogInformation("Attempting to get profile for user: {Username}", username);
+
+            if (string.IsNullOrEmpty(username))
+            {
+                _logger.LogWarning("Username claim not found in token");
+                return Unauthorized("Invalid token");
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User not found in database: {Username}", username);
+                return NotFound("User not found");
+            }
+
+            _logger.LogInformation("Successfully retrieved profile for user: {Username}", username);
+            return Ok(new
+            {
+                id = user.Id,
+                username = user.Username,
+                createdAt = user.CreatedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving user profile");
+            return StatusCode(500, "An error occurred while retrieving the profile");
+        }
+    }
+
+    private string GenerateJwtToken(User user)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not found in configuration")));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.Now.AddDays(1),
+            signingCredentials: credentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private static string HashPassword(string password)

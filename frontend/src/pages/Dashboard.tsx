@@ -1,27 +1,149 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../services/api';
 
 interface DashboardProps {
   setIsAuthenticated: (value: boolean) => void;
 }
 
+interface UserProfile {
+  id: number;
+  username: string;
+  createdAt: string;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [activeMenu, setActiveMenu] = useState('profile');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const data = await authApi.getProfile();
+      setUserProfile(data);
+    } catch (err) {
+      setError('Failed to load user profile');
+      console.error('Error fetching user profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('isLoggedIn');
+    authApi.logout();
     setIsAuthenticated(false);
     navigate('/login');
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
     { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'help', label: 'Help & Support', icon: '❓' },
+    { id: 'api-integrations', label: 'API Integrations', icon: '🔌' },
   ];
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case 'profile':
+        return (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '10px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h2 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '2rem',
+              color: '#1e3c72'
+            }}>
+              User Profile
+            </h2>
+            
+            {loading && (
+              <p style={{ color: '#6b7280' }}>Loading profile...</p>
+            )}
+            
+            {error && (
+              <div style={{
+                padding: '1rem',
+                backgroundColor: '#fee2e2',
+                borderRadius: '8px',
+                color: '#991b1b',
+                marginBottom: '1rem'
+              }}>
+                {error}
+              </div>
+            )}
+            
+            {userProfile && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{
+                  padding: '1.5rem',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ color: '#64748b', fontSize: '0.875rem' }}>Username</label>
+                    <p style={{ color: '#1e293b', fontSize: '1.125rem', fontWeight: '500' }}>
+                      {userProfile.username}
+                    </p>
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ color: '#64748b', fontSize: '0.875rem' }}>User ID</label>
+                    <p style={{ color: '#1e293b', fontSize: '1.125rem', fontWeight: '500' }}>
+                      {userProfile.id}
+                    </p>
+                  </div>
+                  <div>
+                    <label style={{ color: '#64748b', fontSize: '0.875rem' }}>Member Since</label>
+                    <p style={{ color: '#1e293b', fontSize: '1.125rem', fontWeight: '500' }}>
+                      {new Date(userProfile.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      case 'api-integrations':
+        return (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '10px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h2 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              color: '#1e3c72'
+            }}>
+              API Integrations
+            </h2>
+            <p style={{ color: '#6b7280' }}>
+              This feature is coming soon.
+            </p>
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
 
   return (
     <div style={{
@@ -78,8 +200,26 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
           padding: '1rem',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           display: 'flex',
-          justifyContent: 'flex-end'
+          justifyContent: 'flex-end',
+          gap: '1rem'
         }}>
+          <button
+            onClick={() => window.open('http://localhost:5001/swagger', '_blank')}
+            style={{
+              backgroundColor: '#2563eb',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <span>📚</span>
+            Endpoints Swagger
+          </button>
           <button
             onClick={handleLogout}
             style={{
@@ -97,85 +237,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
 
         {/* Main Content Area */}
         <main style={{ padding: '2rem' }}>
-          {/* Welcome Section */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '10px',
-            marginBottom: '2rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h2 style={{
-              fontSize: '1.875rem',
-              fontWeight: 'bold',
-              marginBottom: '1rem',
-              color: '#1e3c72'
-            }}>
-              Welcome to Your Dashboard
-            </h2>
-            <p style={{ color: '#6b7280' }}>
-              Manage your API integrations and monitor your system's performance from this central hub.
-            </p>
-          </div>
-
-          {/* Stats Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '1.5rem',
-            marginBottom: '2rem'
-          }}>
-            <StatCard
-              title="API Calls"
-              value="1,234"
-              subtitle="Last 24 hours"
-              color="#1e3c72"
-            />
-            <StatCard
-              title="Success Rate"
-              value="99.9%"
-              subtitle="Average"
-              color="#2563eb"
-            />
-            <StatCard
-              title="Active Users"
-              value="256"
-              subtitle="Current"
-              color="#7c3aed"
-            />
-          </div>
-
-          {/* Recent Activity */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h3 style={{
-              fontSize: '1.25rem',
-              fontWeight: 'bold',
-              marginBottom: '1.5rem',
-              color: '#1e3c72'
-            }}>
-              Recent Activity
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    padding: '1rem',
-                    backgroundColor: '#f8fafc',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <p style={{ color: '#374151' }}>API Integration {i} completed successfully</p>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem', marginTop: '0.5rem' }}>2 hours ago</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          {renderContent()}
         </main>
       </div>
     </div>

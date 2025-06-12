@@ -13,5 +13,5 @@ public class User
     [Required]
     public string PasswordHash { get; set; } = null!;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 } 

@@ -5,40 +5,24 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
 ## Features
 
 ### Core Features
-- Person and Product management with one-to-many relationship
-- RESTful API endpoints with proper documentation
-- Swagger UI integration
+- Secure JWT-based authentication
+- User profile management
+- Modern dashboard interface
+- Swagger UI integration with authentication support
 - PostgreSQL database with Entity Framework Core
 - Docker containerization
 
-### Data Models
+### Authentication & Authorization
+- JWT (JSON Web Token) based authentication
+- Secure password hashing using SHA256
+- Token-based API access
+- Protected routes and endpoints
 
-#### Person
-- Unique identifier (GUID)
-- Name (required, max 100 characters)
-- Email (required, max 255 characters)
-- Creation timestamp
-- Collection of associated products
-
-#### Product
-- Unique identifier (GUID)
-- Name (required, max 200 characters)
-- Price (decimal 18,2)
-- Creation timestamp
-- Reference to owner (PersonId)
-
-### Authentication
-- User registration with password confirmation
-- Secure login system
-- Session management
-- Professional authentication UI with validation
-- Error handling and loading states
-
-### Dashboard
-- Modern interface with sidebar navigation
-- Real-time statistics display
-- Recent activity monitoring
-- Quick access to key features
+### User Interface
+- Clean and modern dashboard
+- Profile information display
+- API integration section (coming soon)
+- Swagger documentation access
 - Professional dark theme with accent colors
 
 ## Tech Stack
@@ -46,16 +30,16 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
 ### Frontend
 - React 18 with TypeScript
 - React Router for navigation
-- Axios for API communication
+- Axios for API communication with JWT support
 - Modern UI with custom styling
 - Responsive design for all devices
 
 ### Backend
 - ASP.NET Core 9 (Preview)
 - Entity Framework Core for database operations
+- JWT authentication middleware
 - PostgreSQL database
-- RESTful API architecture
-- Swagger UI for API documentation
+- Swagger UI with Bearer token authentication
 
 ### Infrastructure
 - Docker containerization
@@ -87,79 +71,69 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
    - Swagger UI: http://localhost:5001/swagger
    - Database: localhost:5433
 
-## API Endpoints
+## API Documentation
 
-### Person API
+### Authentication Endpoints
 
-#### GET /api/Person
-- Returns a list of all people (without their products)
-- Response: Array of person objects with basic information
-
-#### GET /api/Person/{id}
-- Returns a specific person by ID, including their products
-- Response: Person object with nested products array
-
-#### POST /api/Person
-- Creates a new person
-- Request body: { name: string, email: string }
-- Response: Created person object
-
-#### PUT /api/Person/{id}
-- Updates an existing person
-- Request body: { name: string, email: string }
-- Response: 204 No Content
-
-#### DELETE /api/Person/{id}
-- Deletes a person and their associated products
-- Response: 204 No Content
-
-### Product API
-
-#### GET /api/Product
-- Returns a list of all products
-- Response: Array of product objects with personId
-
-#### GET /api/Product/{id}
-- Returns a specific product by ID
-- Response: Product object
-
-#### POST /api/Product
-- Creates a new product
-- Request body: { name: string, price: decimal, personId: guid }
-- Response: Created product object
-
-#### PUT /api/Product/{id}
-- Updates an existing product
-- Request body: { name: string, price: decimal }
-- Response: 204 No Content
-
-#### DELETE /api/Product/{id}
-- Deletes a product
-- Response: 204 No Content
-
-## Database Schema
-
-### People Table
-```sql
-CREATE TABLE "People" (
-    "Id" uuid PRIMARY KEY,
-    "Name" varchar(100) NOT NULL,
-    "Email" varchar(255) NOT NULL,
-    "CreatedAt" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+#### POST /api/auth/register
+Creates a new user account.
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+Response: 200 OK
+```json
+{
+  "message": "Registration successful"
+}
 ```
 
-### Products Table
-```sql
-CREATE TABLE "Products" (
-    "Id" uuid PRIMARY KEY,
-    "Name" varchar(200) NOT NULL,
-    "Price" decimal(18,2) NOT NULL,
-    "CreatedAt" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "PersonId" uuid NOT NULL,
-    FOREIGN KEY ("PersonId") REFERENCES "People" ("Id") ON DELETE CASCADE
-);
+#### POST /api/auth/login
+Authenticates a user and returns a JWT token.
+```json
+{
+  "username": "string",
+  "password": "string"
+}
 ```
+Response: 200 OK
+```json
+{
+  "token": "JWT_TOKEN_STRING",
+  "message": "Login successful"
+}
+```
+
+#### GET /api/auth/profile
+Returns the authenticated user's profile information.
+
+**Authentication Required**: Bearer Token
+
+Response: 200 OK
+```json
+{
+  "id": 0,
+  "username": "string",
+  "createdAt": "datetime"
+}
+```
+
+### Using Authentication in Swagger UI
+
+1. Click the "Authorize" button (🔓) at the top of the Swagger UI
+2. Enter your JWT token (without "Bearer" prefix)
+3. Click "Authorize" and close the popup
+4. Protected endpoints will now include your token automatically
+
+### Using Authentication in Frontend
+
+The frontend automatically handles authentication by:
+1. Storing the JWT token in sessionStorage upon login
+2. Including the token in all subsequent API requests
+3. Redirecting to login when the token is invalid or missing
+4. Clearing the token on logout
 
 ## Development
 
@@ -204,11 +178,18 @@ api-integration-utility/
 │   │   ├── Controllers/    # API endpoints
 │   │   ├── Data/          # Database context
 │   │   ├── Models/        # Domain models
-│   │   ├── DTOs/          # Data transfer objects
 │   │   └── ...
 │   └── Dockerfile
 └── docker-compose.yml      # Container orchestration
 ```
+
+## Security Considerations
+
+- Passwords are hashed using SHA256
+- JWT tokens expire after 24 hours
+- CORS is configured for frontend origin only
+- Authentication is required for sensitive endpoints
+- Database credentials are managed via environment variables
 
 ## Contributing
 
