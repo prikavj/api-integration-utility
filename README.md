@@ -1,141 +1,118 @@
 # API Integration Utility
 
-A modern full-stack application featuring a React TypeScript frontend, ASP.NET Core 9 backend, and PostgreSQL database. The application provides user authentication and a professional dashboard interface for API integration management.
+A full-stack application for managing and testing API integrations, built with .NET Core and React.
 
 ## Features
 
-### Core Features
-- Secure JWT-based authentication
-- User profile management
-- Modern dashboard interface
-- Swagger UI integration with authentication support
-- PostgreSQL database with Entity Framework Core
-- Docker containerization
+- **User Authentication**
+  - Secure login and registration
+  - JWT-based authentication
+  - Protected routes
 
-### Authentication & Authorization
-- JWT (JSON Web Token) based authentication
-- Secure password hashing using SHA256
-- Token-based API access
-- Protected routes and endpoints
+- **API Management**
+  - View and manage API endpoints
+  - Test API endpoints directly from the UI
+  - Real-time response display with status codes
+  - Response time measurement
+  - Detailed API information display
 
-### User Interface
-- Clean and modern dashboard
-- Profile information display
-- API integration section (coming soon)
-- Swagger documentation access
-- Professional dark theme with accent colors
+- **Database Integration**
+  - PostgreSQL database
+  - Entity Framework Core for data access
+  - Automatic database migrations
+  - Sample API endpoints pre-configured
 
 ## Tech Stack
 
-### Frontend
-- React 18 with TypeScript
-- React Router for navigation
-- Axios for API communication with JWT support
-- Modern UI with custom styling
-- Responsive design for all devices
-
 ### Backend
-- ASP.NET Core 9 (Preview)
-- Entity Framework Core for database operations
-- JWT authentication middleware
-- PostgreSQL database
-- Swagger UI with Bearer token authentication
+- .NET Core 9.0
+- Entity Framework Core
+- PostgreSQL
+- JWT Authentication
+- Swagger/OpenAPI
 
-### Infrastructure
-- Docker containerization
-- Docker Compose for orchestration
-- PostgreSQL for data persistence
+### Frontend
+- React 18
+- Material-UI (MUI)
+- TypeScript
+- Axios for API calls
 
 ## Getting Started
 
 ### Prerequisites
 - Docker and Docker Compose
-- Node.js 18+ (for local development)
-- .NET 9 SDK (for local development)
+- .NET Core SDK 9.0
+- Node.js 18+
 
-### Quick Start
+### Installation
+
 1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd api-integration-utility
-   ```
-
-2. Start the application:
-   ```bash
-   docker compose up --build
-   ```
-
-3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5001
-   - Swagger UI: http://localhost:5001/swagger
-   - Database: localhost:5433
-
-## API Documentation
-
-### Authentication Endpoints
-
-#### POST /api/auth/register
-Creates a new user account.
-```json
-{
-  "username": "string",
-  "password": "string"
-}
-```
-Response: 200 OK
-```json
-{
-  "message": "Registration successful"
-}
+```bash
+git clone <repository-url>
+cd api-integration-utility
 ```
 
-#### POST /api/auth/login
-Authenticates a user and returns a JWT token.
-```json
-{
-  "username": "string",
-  "password": "string"
-}
-```
-Response: 200 OK
-```json
-{
-  "token": "JWT_TOKEN_STRING",
-  "message": "Login successful"
-}
+2. Start the application using Docker Compose:
+```bash
+docker compose up
 ```
 
-#### GET /api/auth/profile
-Returns the authenticated user's profile information.
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5001
+- Swagger UI: http://localhost:5001/swagger
 
-**Authentication Required**: Bearer Token
+### Default Credentials
+- Username: admin
+- Password: admin123
 
-Response: 200 OK
-```json
-{
-  "id": 0,
-  "username": "string",
-  "createdAt": "datetime"
-}
+## Project Structure
+
+```
+api-integration-utility/
+├── backend/
+│   ├── ApiIntegration.Api/          # Main API project
+│   │   ├── Controllers/             # API endpoints
+│   │   ├── Data/                    # Database context and migrations
+│   │   ├── DTOs/                    # Data transfer objects
+│   │   ├── Models/                  # Entity models
+│   │   └── Program.cs               # Application entry point
+│   └── Dockerfile                   # Backend container configuration
+├── frontend/
+│   ├── src/
+│   │   ├── components/              # React components
+│   │   ├── pages/                   # Page components
+│   │   ├── services/                # API services
+│   │   └── App.tsx                  # Main application component
+│   └── Dockerfile                   # Frontend container configuration
+└── docker-compose.yml               # Container orchestration
 ```
 
-### Using Authentication in Swagger UI
+## API Endpoints
 
-1. Click the "Authorize" button (🔓) at the top of the Swagger UI
-2. Enter your JWT token (without "Bearer" prefix)
-3. Click "Authorize" and close the popup
-4. Protected endpoints will now include your token automatically
+The application comes pre-configured with several API endpoints:
 
-### Using Authentication in Frontend
+### People API
+- GET /api/person - Get all people
+- GET /api/person/{id} - Get person by ID
+- POST /api/person - Create new person
+- PUT /api/person/{id} - Update person
+- DELETE /api/person/{id} - Delete person
 
-The frontend automatically handles authentication by:
-1. Storing the JWT token in sessionStorage upon login
-2. Including the token in all subsequent API requests
-3. Redirecting to login when the token is invalid or missing
-4. Clearing the token on logout
+### Products API
+- GET /api/product - Get all products
+- GET /api/product/{id} - Get product by ID
+- POST /api/product - Create new product
+- PUT /api/product/{id} - Update product
+- DELETE /api/product/{id} - Delete product
 
 ## Development
+
+### Backend Development
+```bash
+cd backend/ApiIntegration.Api
+dotnet run
+```
 
 ### Frontend Development
 ```bash
@@ -144,60 +121,20 @@ npm install
 npm start
 ```
 
-### Backend Development
+### Database Migrations
 ```bash
 cd backend/ApiIntegration.Api
-dotnet run
+dotnet ef migrations add <migration-name>
+dotnet ef database update
 ```
-
-### Docker Commands
-```bash
-# Build and start all containers
-docker compose up --build
-
-# Stop and remove containers
-docker compose down
-
-# View logs
-docker compose logs -f
-```
-
-## Project Structure
-
-```
-api-integration-utility/
-├── frontend/                # React TypeScript frontend
-│   ├── src/
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   └── ...
-│   ├── Dockerfile
-│   └── package.json
-├── backend/                 # ASP.NET Core API
-│   ├── ApiIntegration.Api/
-│   │   ├── Controllers/    # API endpoints
-│   │   ├── Data/          # Database context
-│   │   ├── Models/        # Domain models
-│   │   └── ...
-│   └── Dockerfile
-└── docker-compose.yml      # Container orchestration
-```
-
-## Security Considerations
-
-- Passwords are hashed using SHA256
-- JWT tokens expire after 24 hours
-- CORS is configured for frontend origin only
-- Authentication is required for sensitive endpoints
-- Database credentials are managed via environment variables
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 

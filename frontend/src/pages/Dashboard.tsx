@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
+import ApiIntegrations from '../components/ApiIntegrations';
 
 interface DashboardProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -119,26 +120,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
         );
       
       case 'api-integrations':
-        return (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h2 style={{
-              fontSize: '1.875rem',
-              fontWeight: 'bold',
-              marginBottom: '1rem',
-              color: '#1e3c72'
-            }}>
-              API Integrations
-            </h2>
-            <p style={{ color: '#6b7280' }}>
-              This feature is coming soon.
-            </p>
-          </div>
-        );
+        return <ApiIntegrations />;
       
       default:
         return null;

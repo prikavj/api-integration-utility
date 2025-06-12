@@ -21,6 +21,15 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', error.response || error);
+    return Promise.reject(error);
+  }
+);
+
 export interface RegisterRequest {
   username: string;
   password: string;
@@ -34,6 +43,16 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   message: string;
+}
+
+export interface ApiEndpoint {
+  id: number;
+  name: string;
+  url: string;
+  method: string;
+  description: string;
+  category: string;
+  createdAt: string;
 }
 
 export const authApi = {
@@ -57,6 +76,31 @@ export const authApi = {
   logout: () => {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('isLoggedIn');
+  }
+};
+
+export const apiEndpoints = {
+  getAll: async () => {
+    const response = await api.get<ApiEndpoint[]>('/api/apiendpoints');
+    return response.data;
+  },
+
+  execute: async (endpoint: ApiEndpoint) => {
+    const method = endpoint.method.toLowerCase();
+    const url = endpoint.url.startsWith('http') ? endpoint.url : `${api.defaults.baseURL}${endpoint.url}`;
+    
+    console.log('Executing API endpoint:', { method, url });
+    
+    const response = await api({
+      method,
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+    
+    return response;
   }
 };
 

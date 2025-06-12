@@ -116,36 +116,17 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Starting database initialization...");
         var context = services.GetRequiredService<ApplicationDbContext>();
         
-        // Log connection string (remove in production!)
-        logger.LogInformation("Connection string: {ConnectionString}", 
-            builder.Configuration.GetConnectionString("DefaultConnection"));
-
-        // Wait for database to be ready
-        var maxRetries = 10;
-        var retryDelay = TimeSpan.FromSeconds(2);
-
-        for (var i = 0; i < maxRetries; i++)
-        {
-            try
-            {
-                // Try to connect and create database
-                context.Database.EnsureCreated();
-                logger.LogInformation("Database created successfully");
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Database initialization attempt {Attempt} of {MaxAttempts} failed", i + 1, maxRetries);
-                if (i == maxRetries - 1) throw;
-                Thread.Sleep(retryDelay);
-            }
-        }
+        // Create database and schema
+        context.Database.EnsureCreated();
         
-        logger.LogInformation("Database initialization completed");
+        // Seed initial data
+        SeedData.Initialize(context);
+        
+        logger.LogInformation("Database initialization completed successfully");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Fatal error during database initialization");
+        logger.LogError(ex, "An error occurred while initializing the database.");
         throw;
     }
 }
@@ -166,5 +147,22 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Add this after app.Build()
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        context.Database.Migrate();
+        SeedData.Initialize(context);
+    }
+    catch (Exception ex)
+    {
+        var dbLogger = services.GetRequiredService<ILogger<Program>>();
+        dbLogger.LogError(ex, "An error occurred while seeding the database.");
+    }
+}
 
 app.Run(); 
