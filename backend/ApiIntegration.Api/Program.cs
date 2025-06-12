@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 using ApiIntegration.Api.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 
@@ -7,7 +9,26 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Configure Swagger
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "API Integration Utility API", 
+        Version = "v1",
+        Description = "API for managing people and their products"
+    });
+
+    // Set the comments path for the Swagger JSON and UI
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
+
+    // Configure response types
+    c.UseAllOfToExtendReferenceSchemas();
+    c.SupportNonNullableReferenceTypes();
+});
 
 // Configure logging
 builder.Logging.ClearProviders();
@@ -51,62 +72,25 @@ using (var scope = app.Services.CreateScope())
         // Log connection string (remove in production!)
         logger.LogInformation("Connection string: {ConnectionString}", 
             builder.Configuration.GetConnectionString("DefaultConnection"));
-        
+
         // Wait for database to be ready
-        var retryCount = 0;
-        const int maxRetries = 10;
-        while (retryCount < maxRetries)
+        var maxRetries = 10;
+        var retryDelay = TimeSpan.FromSeconds(2);
+
+        for (var i = 0; i < maxRetries; i++)
         {
             try
             {
-                logger.LogInformation("Attempt {RetryCount} to initialize database", retryCount + 1);
-                
-                // Create Users table using SQL
-                var createTableSql = @"
-                    DO $$ 
-                    BEGIN
-                        CREATE TABLE IF NOT EXISTS ""Users"" (
-                            ""Id"" SERIAL PRIMARY KEY,
-                            ""Username"" VARCHAR(50) NOT NULL,
-                            ""PasswordHash"" TEXT NOT NULL,
-                            ""CreatedAt"" TIMESTAMP WITH TIME ZONE NOT NULL
-                        );
-                        
-                        -- Create unique index if it doesn't exist
-                        IF NOT EXISTS (
-                            SELECT 1 FROM pg_indexes 
-                            WHERE tablename = 'Users' 
-                            AND indexname = 'IX_Users_Username'
-                        ) THEN
-                            CREATE UNIQUE INDEX ""IX_Users_Username"" ON ""Users"" (""Username"");
-                        END IF;
-                    EXCEPTION
-                        WHEN others THEN
-                            RAISE NOTICE 'Error creating table: %', SQLERRM;
-                    END $$;";
-
-                context.Database.ExecuteSqlRaw(createTableSql);
-                logger.LogInformation("Database table creation completed successfully");
-                
-                // Verify table exists by counting rows
-                var count = context.Users.Count();
-                logger.LogInformation("Current user count: {Count}", count);
-                
+                // Try to connect and create database
+                context.Database.EnsureCreated();
+                logger.LogInformation("Database created successfully");
                 break;
             }
             catch (Exception ex)
             {
-                retryCount++;
-                logger.LogError(ex, "Error during database initialization (Attempt {RetryCount}/{MaxRetries})", 
-                    retryCount, maxRetries);
-                
-                if (retryCount == maxRetries)
-                {
-                    throw;
-                }
-                
-                logger.LogInformation("Waiting 2 seconds before retry...");
-                Thread.Sleep(2000);
+                logger.LogWarning(ex, "Database initialization attempt {Attempt} of {MaxAttempts} failed", i + 1, maxRetries);
+                if (i == maxRetries - 1) throw;
+                Thread.Sleep(retryDelay);
             }
         }
         
@@ -120,11 +104,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Integration Utility API V1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseHttpsRedirection();
 app.UseCors();

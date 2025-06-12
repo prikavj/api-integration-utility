@@ -1,4 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0-preview AS build
+# Install Entity Framework Core tools
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
 WORKDIR /src
 
 # Copy csproj and restore dependencies
@@ -19,5 +23,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0-preview AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# Heroku uses PORT environment variable
-CMD ASPNETCORE_URLS=http://*:$PORT dotnet ApiIntegration.Api.dll 
+ENV ASPNETCORE_URLS=http://+:80
+
+ENTRYPOINT ["dotnet", "ApiIntegration.Api.dll"] 

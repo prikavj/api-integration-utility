@@ -4,6 +4,29 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
 
 ## Features
 
+### Core Features
+- Person and Product management with one-to-many relationship
+- RESTful API endpoints with proper documentation
+- Swagger UI integration
+- PostgreSQL database with Entity Framework Core
+- Docker containerization
+
+### Data Models
+
+#### Person
+- Unique identifier (GUID)
+- Name (required, max 100 characters)
+- Email (required, max 255 characters)
+- Creation timestamp
+- Collection of associated products
+
+#### Product
+- Unique identifier (GUID)
+- Name (required, max 200 characters)
+- Price (decimal 18,2)
+- Creation timestamp
+- Reference to owner (PersonId)
+
 ### Authentication
 - User registration with password confirmation
 - Secure login system
@@ -32,7 +55,7 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
 - Entity Framework Core for database operations
 - PostgreSQL database
 - RESTful API architecture
-- Secure password hashing
+- Swagger UI for API documentation
 
 ### Infrastructure
 - Docker containerization
@@ -55,7 +78,7 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
 
 2. Start the application:
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
 3. Access the application:
@@ -64,25 +87,78 @@ A modern full-stack application featuring a React TypeScript frontend, ASP.NET C
    - Swagger UI: http://localhost:5001/swagger
    - Database: localhost:5433
 
-## Project Structure
+## API Endpoints
 
+### Person API
+
+#### GET /api/Person
+- Returns a list of all people (without their products)
+- Response: Array of person objects with basic information
+
+#### GET /api/Person/{id}
+- Returns a specific person by ID, including their products
+- Response: Person object with nested products array
+
+#### POST /api/Person
+- Creates a new person
+- Request body: { name: string, email: string }
+- Response: Created person object
+
+#### PUT /api/Person/{id}
+- Updates an existing person
+- Request body: { name: string, email: string }
+- Response: 204 No Content
+
+#### DELETE /api/Person/{id}
+- Deletes a person and their associated products
+- Response: 204 No Content
+
+### Product API
+
+#### GET /api/Product
+- Returns a list of all products
+- Response: Array of product objects with personId
+
+#### GET /api/Product/{id}
+- Returns a specific product by ID
+- Response: Product object
+
+#### POST /api/Product
+- Creates a new product
+- Request body: { name: string, price: decimal, personId: guid }
+- Response: Created product object
+
+#### PUT /api/Product/{id}
+- Updates an existing product
+- Request body: { name: string, price: decimal }
+- Response: 204 No Content
+
+#### DELETE /api/Product/{id}
+- Deletes a product
+- Response: 204 No Content
+
+## Database Schema
+
+### People Table
+```sql
+CREATE TABLE "People" (
+    "Id" uuid PRIMARY KEY,
+    "Name" varchar(100) NOT NULL,
+    "Email" varchar(255) NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
-api-integration-utility/
-├── frontend/                # React TypeScript frontend
-│   ├── src/
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   └── ...
-│   ├── Dockerfile
-│   └── package.json
-├── backend/                 # ASP.NET Core API
-│   ├── ApiIntegration.Api/
-│   │   ├── Controllers/    # API endpoints
-│   │   ├── Data/          # Database context
-│   │   ├── Models/        # Domain models
-│   │   └── ...
-│   └── Dockerfile
-└── docker-compose.yml      # Container orchestration
+
+### Products Table
+```sql
+CREATE TABLE "Products" (
+    "Id" uuid PRIMARY KEY,
+    "Name" varchar(200) NOT NULL,
+    "Price" decimal(18,2) NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "PersonId" uuid NOT NULL,
+    FOREIGN KEY ("PersonId") REFERENCES "People" ("Id") ON DELETE CASCADE
+);
 ```
 
 ## Development
@@ -100,47 +176,39 @@ cd backend/ApiIntegration.Api
 dotnet run
 ```
 
-### Database
-- PostgreSQL database running on port 5433
-- Automatic migrations on startup
-- Entity Framework Core for data access
+### Docker Commands
+```bash
+# Build and start all containers
+docker compose up --build
 
-## API Endpoints
+# Stop and remove containers
+docker compose down
 
-### Authentication
-- POST `/api/auth/register` - User registration
-- POST `/api/auth/login` - User login
+# View logs
+docker compose logs -f
+```
 
-### Dashboard (Protected Routes)
-- GET `/api/dashboard/stats` - Dashboard statistics
-- GET `/api/dashboard/activity` - Recent activity
+## Project Structure
 
-## Environment Variables
-
-### Frontend
-- `REACT_APP_API_URL` - Backend API URL
-
-### Backend
-- `ConnectionStrings__DefaultConnection` - PostgreSQL connection string
-- `ASPNETCORE_ENVIRONMENT` - Development/Production
-
-## Container Architecture
-
-The application runs in three containers:
-1. **Frontend Container**: React application
-   - Port: 3000
-   - Built with Node.js
-   - Production-ready build served statically
-
-2. **Backend Container**: ASP.NET Core API
-   - Port: 5001
-   - .NET 9 runtime
-   - Direct database access
-
-3. **Database Container**: PostgreSQL
-   - Port: 5433
-   - Persistent volume for data storage
-   - Automatic initialization
+```
+api-integration-utility/
+├── frontend/                # React TypeScript frontend
+│   ├── src/
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API services
+│   │   └── ...
+│   ├── Dockerfile
+│   └── package.json
+├── backend/                 # ASP.NET Core API
+│   ├── ApiIntegration.Api/
+│   │   ├── Controllers/    # API endpoints
+│   │   ├── Data/          # Database context
+│   │   ├── Models/        # Domain models
+│   │   ├── DTOs/          # Data transfer objects
+│   │   └── ...
+│   └── Dockerfile
+└── docker-compose.yml      # Container orchestration
+```
 
 ## Contributing
 
