@@ -17,9 +17,16 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  SelectChangeEvent
+  SelectChangeEvent,
+  TextField,
+  Stack
 } from '@mui/material';
 import { apiEndpoints, ApiEndpoint } from '../services/api';
+
+const extractPathParams = (url: string): string[] => {
+  const matches = url.match(/{(.*?)}/g);
+  return matches ? matches.map(m => m.replace(/[{}]/g, '')) : [];
+};
 
 const ApiIntegrations: React.FC = () => {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
@@ -28,10 +35,24 @@ const ApiIntegrations: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [apiResponse, setApiResponse] = useState<any>(null);
   const [responseTime, setResponseTime] = useState<number | null>(null);
+  const [paramValues, setParamValues] = useState<{ [key: string]: string }>({});
+  const [pathParams, setPathParams] = useState<string[]>([]);
 
   useEffect(() => {
     fetchEndpoints();
   }, []);
+
+  useEffect(() => {
+    if (selectedEndpoint) {
+      const params = extractPathParams(selectedEndpoint.url);
+      setPathParams(params);
+      // Reset param values when endpoint changes
+      setParamValues(params.reduce((acc, p) => ({ ...acc, [p]: '' }), {}));
+    } else {
+      setPathParams([]);
+      setParamValues({});
+    }
+  }, [selectedEndpoint]);
 
   const fetchEndpoints = async () => {
     try {
@@ -55,8 +76,18 @@ const ApiIntegrations: React.FC = () => {
     setResponseTime(null);
   };
 
+  const handleParamChange = (param: string, value: string) => {
+    setParamValues(prev => ({ ...prev, [param]: value }));
+  };
+
   const handleRunApi = async () => {
     if (!selectedEndpoint) return;
+
+    // Substitute path params
+    let url = selectedEndpoint.url;
+    pathParams.forEach(param => {
+      url = url.replace(`{${param}}`, paramValues[param] || '');
+    });
 
     try {
       setLoading(true);
@@ -65,7 +96,7 @@ const ApiIntegrations: React.FC = () => {
       setResponseTime(null);
 
       const startTime = performance.now();
-      const response = await apiEndpoints.execute(selectedEndpoint);
+      const response = await apiEndpoints.execute({ ...selectedEndpoint, url });
       const endTime = performance.now();
 
       setApiResponse(response.data);
@@ -145,13 +176,28 @@ const ApiIntegrations: React.FC = () => {
         </TableContainer>
       )}
 
+      {/* Parameter input fields if needed */}
+      {selectedEndpoint && pathParams.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          {pathParams.map(param => (
+            <TextField
+              key={param}
+              label={param}
+              value={paramValues[param] || ''}
+              onChange={e => handleParamChange(param, e.target.value)}
+              size="small"
+            />
+          ))}
+        </Stack>
+      )}
+
       {selectedEndpoint && (
         <Box sx={{ mb: 3 }}>
           <Button
             variant="contained"
             color="primary"
             onClick={handleRunApi}
-            disabled={loading}
+            disabled={loading || (pathParams.length > 0 && pathParams.some(p => !paramValues[p]))}
             sx={{ mb: 2 }}
           >
             {loading ? <CircularProgress size={24} /> : 'Run API'}
