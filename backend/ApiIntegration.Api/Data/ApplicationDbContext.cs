@@ -20,6 +20,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Person> People { get; set; } = null!;
     public DbSet<Product> Products { get; set; } = null!;
     public DbSet<ApiEndpoint> ApiEndpoints { get; set; } = null!;
+    public DbSet<Models.ApiIntegration> ApiIntegrations { get; set; } = null!;
+    public DbSet<ApiIntegrationConnection> ApiIntegrationConnections { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +66,36 @@ public class ApplicationDbContext : DbContext
                   .WithMany(p => p.Products)
                   .HasForeignKey(p => p.PersonId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ApiIntegration configuration
+        modelBuilder.Entity<Models.ApiIntegration>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        // ApiIntegrationConnection configuration
+        modelBuilder.Entity<ApiIntegrationConnection>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Configure the relationship with ApiIntegration
+            entity.HasOne(e => e.ApiIntegration)
+                  .WithMany(i => i.Connections)
+                  .HasForeignKey(e => e.ApiIntegrationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure the relationship with ApiEndpoint
+            entity.HasOne(e => e.ApiEndpoint)
+                  .WithMany()
+                  .HasForeignKey(e => e.ApiEndpointId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Add unique constraint for sequence number within an integration
+            entity.HasIndex(e => new { e.ApiIntegrationId, e.SequenceNumber })
+                  .IsUnique();
         });
     }
 } 

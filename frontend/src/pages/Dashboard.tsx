@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
 import ApiIntegrations from '../components/ApiIntegrations';
+import ApiIntegrationBuilder from '../components/ApiIntegrationBuilder';
+import { apiIntegrations } from '../services/api';
 
 interface DashboardProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -46,6 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
   const menuItems = [
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'api-integrations', label: 'API Integrations', icon: '🔌' },
+    { id: 'integration-builder', label: 'Integration Builder', icon: '⚙️' },
   ];
 
   const renderContent = () => {
@@ -121,6 +124,21 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
       
       case 'api-integrations':
         return <ApiIntegrations />;
+      
+      case 'integration-builder':
+        return (
+          <ApiIntegrationBuilder
+            onSave={async (name, connections) => {
+              try {
+                const integration = await apiIntegrations.create(name, connections);
+                console.log('Integration created:', integration);
+                // You can add a success message or redirect here
+              } catch (error) {
+                console.error('Error creating integration:', error);
+              }
+            }}
+          />
+        );
       
       default:
         return null;

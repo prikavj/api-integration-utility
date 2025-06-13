@@ -55,6 +55,20 @@ export interface ApiEndpoint {
   createdAt: string;
 }
 
+export interface ApiIntegration {
+  id: number;
+  name: string;
+  createdAt: string;
+  lastModifiedAt: string | null;
+}
+
+export interface ApiIntegrationConnection {
+  id: number;
+  apiIntegrationId: number;
+  apiEndpointId: number;
+  sequenceNumber: number;
+}
+
 export const authApi = {
   register: async (data: RegisterRequest) => {
     const response = await api.post('/api/auth/register', data);
@@ -101,6 +115,26 @@ export const apiEndpoints = {
     });
     
     return response;
+  }
+};
+
+export const apiIntegrations = {
+  create: async (name: string, connections: { apiEndpointId: number; sequenceNumber: number }[]) => {
+    const response = await api.post<ApiIntegration>('/api/apiintegrations', {
+      name,
+      connections
+    });
+    return response.data;
+  },
+
+  getAll: async () => {
+    const response = await api.get<ApiIntegration[]>('/api/apiintegrations');
+    return response.data;
+  },
+
+  execute: async (id: number) => {
+    const response = await api.post(`/api/apiintegrations/${id}/execute`);
+    return response.data;
   }
 };
 
