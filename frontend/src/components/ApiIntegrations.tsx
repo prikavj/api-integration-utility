@@ -19,9 +19,21 @@ import {
   Chip,
   SelectChangeEvent,
   Stack,
-  TextField
+  TextField,
+  Container,
+  Grid,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import { apiIntegrations, ApiIntegration, apiEndpoints, ApiEndpoint } from '../services/api';
+
+const API_BASE_URL = 'http://localhost:5001';
 
 const ApiIntegrations: React.FC = () => {
   const [integrations, setIntegrations] = useState<ApiIntegration[]>([]);
@@ -31,6 +43,11 @@ const ApiIntegrations: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<any>(null);
   const [token, setToken] = useState<string>('');
+  const [parameters, setParameters] = useState<Record<string, string>>({});
+  const [newIntegrationName, setNewIntegrationName] = useState('');
+  const [selectedEndpoints, setSelectedEndpoints] = useState<{ apiEndpointId: number; sequenceNumber: number }[]>([]);
+  const [endpointParameters, setEndpointParameters] = useState<Record<number, Record<string, string>>>({});
+  const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
     fetchIntegrations();
@@ -60,20 +77,79 @@ const ApiIntegrations: React.FC = () => {
     }
   };
 
-  const handleIntegrationChange = (event: SelectChangeEvent<number>) => {
-    const integrationId = event.target.value as number;
-    const integration = integrations.find(i => i.id === integrationId) || null;
+  const handleSelectIntegration = (integration: ApiIntegration) => {
     setSelectedIntegration(integration);
     setExecutionResult(null);
   };
 
-  const handleExecuteIntegration = async () => {
-    if (!selectedIntegration) return;
+  const getEndpointParameters = (url: string) => {
+    const matches = url.match(/\{([^}]+)\}/g) || [];
+    return matches.map(match => match.slice(1, -1));
+  };
+
+  const handleParameterChange = (endpointId: number, paramName: string, value: string) => {
+    setEndpointParameters(prev => ({
+      ...prev,
+      [endpointId]: {
+        ...(prev[endpointId] || {}),
+        [paramName]: value
+      }
+    }));
+  };
+
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleCreateIntegration = async () => {
+    if (!newIntegrationName || selectedEndpoints.length === 0) return;
 
     try {
       setLoading(true);
       setError(null);
-      const result = await apiIntegrations.execute(selectedIntegration.id, token);
+      const integration = await apiIntegrations.create(newIntegrationName, selectedEndpoints);
+      setIntegrations(prev => [...prev, integration]);
+      setNewIntegrationName('');
+      setSelectedEndpoints([]);
+      setEndpointParameters({});
+    } catch (err: any) {
+      console.error('Error creating integration:', err);
+      setError(err.response?.data?.message || 'Failed to create integration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExecuteIntegration = async () => {
+    if (!selectedIntegration || !token) {
+      console.log('Cannot execute: missing integration or token', { selectedIntegration, token });
+      return;
+    }
+
+    setLoading(true);
+    setExecutionResult(null);
+    setError(null);
+
+    try {
+      console.log('Starting integration execution...');
+      console.log('Integration:', selectedIntegration);
+      console.log('Token:', token);
+      
+      // Collect all parameters from the selected integration's endpoints
+      const allParameters: Record<string, string> = {};
+      selectedIntegration.connections.forEach(conn => {
+        const endpointParams = endpointParameters[conn.apiEndpointId] || {};
+        Object.assign(allParameters, endpointParams);
+      });
+      
+      console.log('Parameters:', allParameters);
+
+      const result = await apiIntegrations.execute(selectedIntegration.id, token, allParameters);
+      console.log('Execution result:', result);
       setExecutionResult(result);
     } catch (err: any) {
       console.error('Error executing integration:', err);
@@ -83,8 +159,35 @@ const ApiIntegrations: React.FC = () => {
     }
   };
 
+  const getRequiredParameters = () => {
+    if (!selectedIntegration) return [];
+    
+    const params = new Set<string>();
+    selectedIntegration.connections.forEach(conn => {
+      const endpoint = getEndpointDetails(conn.apiEndpointId);
+      if (endpoint) {
+        const matches = endpoint.url.match(/\{([^}]+)\}/g) || [];
+        matches.forEach(match => {
+          const paramName = match.slice(1, -1);
+          params.add(paramName);
+        });
+      }
+    });
+    return Array.from(params);
+  };
+
   const getEndpointDetails = (endpointId: number) => {
     return endpoints.find(ep => ep.id === endpointId);
+  };
+
+  const handleAddEndpoint = (endpoint: ApiEndpoint) => {
+    setSelectedEndpoints(prev => [
+      ...prev,
+      {
+        apiEndpointId: endpoint.id,
+        sequenceNumber: prev.length + 1
+      }
+    ]);
   };
 
   return (
@@ -109,7 +212,7 @@ const ApiIntegrations: React.FC = () => {
             id="integration-select"
             value={selectedIntegration?.id || ''}
             label="Select Integration"
-            onChange={handleIntegrationChange}
+            onChange={(e) => handleSelectIntegration(integrations.find(i => i.id === e.target.value)!)}
           >
             {integrations.map((integration) => (
               <MenuItem key={integration.id} value={integration.id}>
@@ -140,6 +243,7 @@ const ApiIntegrations: React.FC = () => {
                   <TableCell>API Endpoint</TableCell>
                   <TableCell>Method</TableCell>
                   <TableCell>URL</TableCell>
+                  <TableCell>Parameters</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -147,7 +251,9 @@ const ApiIntegrations: React.FC = () => {
                   .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
                   .map((connection) => {
                     const endpoint = getEndpointDetails(connection.apiEndpointId);
-                    return endpoint ? (
+                    if (!endpoint) return null;
+                    const params = getEndpointParameters(endpoint.url);
+                    return (
                       <TableRow key={connection.apiEndpointId}>
                         <TableCell>{connection.sequenceNumber}</TableCell>
                         <TableCell>{endpoint.name}</TableCell>
@@ -163,8 +269,38 @@ const ApiIntegrations: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell>{endpoint.url}</TableCell>
+                        <TableCell>
+                          {params.length > 0 ? (
+                            <Stack direction="row" spacing={1}>
+                              {params.map(param => (
+                                <TextField
+                                  key={param}
+                                  label={param}
+                                  size="small"
+                                  value={endpointParameters[connection.apiEndpointId]?.[param] || ''}
+                                  onChange={(e) => {
+                                    // Allow GUID format for ID parameters
+                                    if (param.toLowerCase().includes('id')) {
+                                      const value = e.target.value.replace(/[^0-9a-fA-F-]/g, '');
+                                      handleParameterChange(connection.apiEndpointId, param, value);
+                                    } else {
+                                      handleParameterChange(connection.apiEndpointId, param, e.target.value);
+                                    }
+                                  }}
+                                  error={!!(param.toLowerCase().includes('id') && 
+                                         endpointParameters[connection.apiEndpointId]?.[param] && 
+                                         !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(endpointParameters[connection.apiEndpointId][param]))}
+                                  helperText={param.toLowerCase().includes('id') ? 'Must be a valid GUID (e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6)' : ''}
+                                  sx={{ minWidth: 120 }}
+                                />
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">-</Typography>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    ) : null;
+                    );
                   })}
               </TableBody>
             </Table>
@@ -175,14 +311,21 @@ const ApiIntegrations: React.FC = () => {
               label="Token"
               type="password"
               value={token}
-              onChange={(e) => setToken(e.target.value)}
+              onChange={(e) => {
+                console.log('Token changed:', e.target.value);
+                setToken(e.target.value);
+              }}
               sx={{ mb: 2 }}
             />
             <Button
               variant="contained"
               color="primary"
-              onClick={handleExecuteIntegration}
-              disabled={loading}
+              onClick={() => {
+                console.log('Execute button clicked');
+                console.log('Current token:', token);
+                handleExecuteIntegration();
+              }}
+              disabled={loading || !token}
             >
               {loading ? <CircularProgress size={24} /> : 'Execute Integration'}
             </Button>

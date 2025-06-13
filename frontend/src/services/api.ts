@@ -73,6 +73,10 @@ export interface ApiIntegrationConnection {
   sequenceNumber: number;
 }
 
+export interface ExecutionRequest {
+  parameters: Record<string, string>;
+}
+
 export const authApi = {
   register: async (data: RegisterRequest) => {
     const response = await api.post('/api/auth/register', data);
@@ -136,10 +140,18 @@ export const apiIntegrations = {
     return response.data;
   },
 
-  execute: async (id: number, token?: string) => {
-    const response = await api.post(`/api/apiintegrations/${id}/execute`, {}, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    });
+  execute: async (id: number, token?: string, parameters?: Record<string, string>) => {
+    console.log('Executing integration:', { id, token, parameters });
+    const response = await api.post(`/api/apiintegrations/${id}/execute`, 
+      parameters ? { parameters } : undefined,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      }
+    );
+    console.log('Execution response:', response.data);
     return response.data;
   }
 };

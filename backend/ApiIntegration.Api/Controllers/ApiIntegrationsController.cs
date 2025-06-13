@@ -80,7 +80,7 @@ public class ApiIntegrationsController : ControllerBase
     }
 
     [HttpPost("{id}/execute")]
-    public async Task<ActionResult<ExecutionResult>> Execute(int id)
+    public async Task<ActionResult<ExecutionResult>> Execute(int id, [FromBody] ExecutionRequest? executionRequest = null)
     {
         var integration = await _context.ApiIntegrations
             .Include(i => i.Connections)
@@ -115,12 +115,22 @@ public class ApiIntegrationsController : ControllerBase
             
             try
             {
-                var path = conn.ApiEndpoint.Url.StartsWith("/") ? conn.ApiEndpoint.Url : "/" + conn.ApiEndpoint.Url;
+                // Replace parameters in URL
+                var path = conn.ApiEndpoint.Url;
+                if (executionRequest?.Parameters != null)
+                {
+                    foreach (var param in executionRequest.Parameters)
+                    {
+                        path = path.Replace($"{{{param.Key}}}", param.Value);
+                    }
+                }
+                
+                path = path.StartsWith("/") ? path : "/" + path;
                 var fullUrl = $"{client.BaseAddress}{path}";
                 Console.WriteLine($"Executing API call to: {fullUrl} with method: {conn.ApiEndpoint.Method}");
                 
-                var request = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
-                var response = await client.SendAsync(request);
+                var httpRequest = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
+                var response = await client.SendAsync(httpRequest);
                 
                 Console.WriteLine($"API call completed. Status code: {response.StatusCode}");
                 var content = await response.Content.ReadAsStringAsync();
@@ -247,4 +257,9 @@ public class ExecutionStep
     public int ApiEndpointId { get; set; }
     public int StatusCode { get; set; }
     public double RunTime { get; set; }
+}
+
+public class ExecutionRequest
+{
+    public Dictionary<string, string> Parameters { get; set; } = new();
 } 
