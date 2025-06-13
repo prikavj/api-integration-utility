@@ -44,6 +44,7 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
   const [success, setSuccess] = useState<string | null>(null);
   const [integration, setIntegration] = useState<ApiIntegration | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEndpoints();
@@ -103,7 +104,7 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
     try {
       setLoading(true);
       setError(null);
-      setSuccess(null);
+      setSuccessMessage(null);
       const response = await api.post('/api/apiintegrations', {
         name: integrationName,
         connections: connections.map((conn, index) => ({
@@ -111,12 +112,15 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
           sequenceNumber: index + 1
         }))
       });
-      // If we get here, the request was successful (201 or 200)
-      setSuccess('Integration saved successfully!');
+      setSuccessMessage('Integration saved successfully!');
       setIntegrationName('');
       setConnections([]);
     } catch (err: any) {
-      setError(err.response?.data || 'Failed to save integration. Please try again.');
+      if (err.response?.status === 400 && err.response?.data?.includes('already exists')) {
+        setError('An integration with this name already exists');
+      } else {
+        setError('Failed to save integration. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -177,9 +181,9 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
           </Alert>
         )}
 
-        {success && (
+        {successMessage && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
+            {successMessage}
           </Alert>
         )}
 

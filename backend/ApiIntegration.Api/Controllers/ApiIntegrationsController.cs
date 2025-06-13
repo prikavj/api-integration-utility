@@ -25,6 +25,7 @@ public class ApiIntegrationsController : ControllerBase
         {
             return BadRequest($"An integration with the name '{dto.Name}' already exists.");
         }
+
         var integration = new Models.ApiIntegration
         {
             Name = dto.Name,

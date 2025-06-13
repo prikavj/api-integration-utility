@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
-import { ApiIntegrations } from './ApiIntegrations';
+import ApiIntegrations from '../components/ApiIntegrations';
 import { ApiIntegrationBuilder } from '../components/ApiIntegrationBuilder';
 import { Box, Container, Typography } from '@mui/material';
 

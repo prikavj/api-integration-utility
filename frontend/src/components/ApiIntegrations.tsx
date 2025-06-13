@@ -88,29 +88,35 @@ const ApiIntegrations: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        API Integrations
+        Funny API Integrations
       </Typography>
 
-      {error && (
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
+      ) : (
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="integration-select-label">Select Integration</InputLabel>
+          <Select
+            labelId="integration-select-label"
+            id="integration-select"
+            value={selectedIntegration?.id || ''}
+            label="Select Integration"
+            onChange={handleIntegrationChange}
+          >
+            {integrations.map((integration) => (
+              <MenuItem key={integration.id} value={integration.id}>
+                {integration.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       )}
-
-      <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Select Integration</InputLabel>
-        <Select
-          value={selectedIntegration?.id || ''}
-          onChange={handleIntegrationChange}
-          label="Select Integration"
-        >
-          {integrations.map((integration) => (
-            <MenuItem key={integration.id} value={integration.id}>
-              {integration.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
 
       {selectedIntegration && (
         <Box sx={{ mb: 3 }}>
