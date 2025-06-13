@@ -120,7 +120,9 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("Starting database initialization...");
         var context = services.GetRequiredService<ApplicationDbContext>();
         
-        // Create database and schema
+        // Drop and recreate database
+        logger.LogInformation("Dropping and recreating database...");
+        context.Database.EnsureDeleted();
         context.Database.EnsureCreated();
         
         // Seed initial data
@@ -151,22 +153,5 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
-// Add this after app.Build()
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        context.Database.Migrate();
-        SeedData.Initialize(context);
-    }
-    catch (Exception ex)
-    {
-        var dbLogger = services.GetRequiredService<ILogger<Program>>();
-        dbLogger.LogError(ex, "An error occurred while seeding the database.");
-    }
-}
 
 app.Run(); 

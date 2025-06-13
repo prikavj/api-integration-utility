@@ -28,6 +28,9 @@ services:
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=db;Database=apiintegration;Username=admin;Password=your_secure_password_here
       - ApiBaseUrl=http://host.docker.internal:5001
+      - Jwt__Key=your_super_secret_key_with_at_least_32_characters_long
+      - Jwt__Issuer=http://localhost:5001
+      - Jwt__Audience=http://localhost:3000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
