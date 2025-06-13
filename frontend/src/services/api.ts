@@ -136,8 +136,10 @@ export const apiIntegrations = {
     return response.data;
   },
 
-  execute: async (id: number) => {
-    const response = await api.post(`/api/apiintegrations/${id}/execute`);
+  execute: async (id: number, token?: string) => {
+    const response = await api.post(`/api/apiintegrations/${id}/execute`, {}, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
     return response.data;
   }
 };

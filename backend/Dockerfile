@@ -36,7 +36,7 @@ echo "Waiting for database to be ready..."\n\
 sleep 10\n\
 \n\
 echo "Applying database migrations..."\n\
-dotnet ef database update\n\
+dotnet ef database update --project ApiIntegration.Api\n\
 \n\
 echo "Starting application..."\n\
 dotnet ApiIntegration.Api.dll' > /app/entrypoint.sh && \

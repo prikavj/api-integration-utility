@@ -18,7 +18,8 @@ import {
   Alert,
   Chip,
   SelectChangeEvent,
-  Stack
+  Stack,
+  TextField
 } from '@mui/material';
 import { apiIntegrations, ApiIntegration, apiEndpoints, ApiEndpoint } from '../services/api';
 
@@ -29,6 +30,7 @@ const ApiIntegrations: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<any>(null);
+  const [token, setToken] = useState<string>('');
 
   useEffect(() => {
     fetchIntegrations();
@@ -71,7 +73,7 @@ const ApiIntegrations: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const result = await apiIntegrations.execute(selectedIntegration.id);
+      const result = await apiIntegrations.execute(selectedIntegration.id, token);
       setExecutionResult(result);
     } catch (err: any) {
       console.error('Error executing integration:', err);
@@ -169,6 +171,13 @@ const ApiIntegrations: React.FC = () => {
           </TableContainer>
 
           <Stack direction="row" spacing={2}>
+            <TextField
+              label="Token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              sx={{ mb: 2 }}
+            />
             <Button
               variant="contained"
               color="primary"
@@ -189,23 +198,40 @@ const ApiIntegrations: React.FC = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Step</TableCell>
+                      <TableCell>API Endpoint</TableCell>
+                      <TableCell>Method</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Response Time</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {executionResult.steps.map((step: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={step.statusCode} 
-                            color={step.statusCode >= 200 && step.statusCode < 300 ? 'success' : 'error'}
-                          />
-                        </TableCell>
-                        <TableCell>{step.runTime.toFixed(2)}ms</TableCell>
-                      </TableRow>
-                    ))}
+                    {executionResult.steps.map((step: any, index: number) => {
+                      const endpoint = getEndpointDetails(step.apiEndpointId);
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{endpoint ? endpoint.name : 'Unknown'}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={endpoint ? endpoint.method : 'Unknown'} 
+                              color={
+                                endpoint?.method === 'GET' ? 'success' :
+                                endpoint?.method === 'POST' ? 'primary' :
+                                endpoint?.method === 'PUT' ? 'warning' :
+                                endpoint?.method === 'DELETE' ? 'error' : 'default'
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={step.statusCode} 
+                              color={step.statusCode >= 200 && step.statusCode < 300 ? 'success' : 'error'}
+                            />
+                          </TableCell>
+                          <TableCell>{step.runTime.toFixed(2)}ms</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
