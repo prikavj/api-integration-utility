@@ -48,6 +48,7 @@ const ApiIntegrations: React.FC = () => {
   const [selectedEndpoints, setSelectedEndpoints] = useState<{ apiEndpointId: number; sequenceNumber: number }[]>([]);
   const [endpointParameters, setEndpointParameters] = useState<Record<number, Record<string, string>>>({});
   const [openDialog, setOpenDialog] = useState(false);
+  const [requestBodies, setRequestBodies] = useState<Record<number, string>>({});
 
   useEffect(() => {
     fetchIntegrations();
@@ -94,6 +95,13 @@ const ApiIntegrations: React.FC = () => {
         ...(prev[endpointId] || {}),
         [paramName]: value
       }
+    }));
+  };
+
+  const handleRequestBodyChange = (endpointId: number, value: string) => {
+    setRequestBodies(prev => ({
+      ...prev,
+      [endpointId]: value
     }));
   };
 
@@ -145,14 +153,29 @@ const ApiIntegrations: React.FC = () => {
       
       // Collect all parameters from the selected integration's endpoints
       const allParameters: Record<string, string> = {};
+      const allRequestBodies: Record<number, any> = {};
+      
       selectedIntegration.connections.forEach(conn => {
         const endpointParams = endpointParameters[conn.apiEndpointId] || {};
         Object.assign(allParameters, endpointParams);
+        
+        // Add request body if it exists
+        const requestBody = requestBodies[conn.apiEndpointId];
+        if (requestBody) {
+          try {
+            allRequestBodies[conn.apiEndpointId] = JSON.parse(requestBody);
+          } catch (e) {
+            console.error('Invalid JSON in request body:', e);
+            setError('Invalid JSON in request body');
+            return;
+          }
+        }
       });
       
       console.log('Parameters:', allParameters);
+      console.log('Request Bodies:', allRequestBodies);
 
-      const result = await apiIntegrations.execute(selectedIntegration.id, token, allParameters);
+      const result = await apiIntegrations.execute(selectedIntegration.id, token, allParameters, allRequestBodies);
       console.log('Execution result:', result);
       setExecutionResult(result);
     } catch (err: any) {
@@ -248,6 +271,7 @@ const ApiIntegrations: React.FC = () => {
                   <TableCell>Method</TableCell>
                   <TableCell>URL</TableCell>
                   <TableCell>Parameters</TableCell>
+                  <TableCell>Request Body</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -257,50 +281,40 @@ const ApiIntegrations: React.FC = () => {
                     const endpoint = getEndpointDetails(connection.apiEndpointId);
                     if (!endpoint) return null;
                     const params = getEndpointParameters(endpoint.url);
+                    const isPostOrPut = endpoint.method === 'POST' || endpoint.method === 'PUT';
+                    
                     return (
-                      <TableRow key={connection.apiEndpointId}>
+                      <TableRow key={`${connection.apiEndpointId}-${connection.sequenceNumber}`}>
                         <TableCell>{connection.sequenceNumber}</TableCell>
                         <TableCell>{endpoint.name}</TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={endpoint.method} 
-                            color={
-                              endpoint.method === 'GET' ? 'success' :
-                              endpoint.method === 'POST' ? 'primary' :
-                              endpoint.method === 'PUT' ? 'warning' :
-                              endpoint.method === 'DELETE' ? 'error' : 'default'
-                            }
-                          />
-                        </TableCell>
+                        <TableCell>{endpoint.method}</TableCell>
                         <TableCell>{endpoint.url}</TableCell>
                         <TableCell>
-                          {params.length > 0 ? (
-                            <Stack direction="row" spacing={1}>
-                              {params.map(param => (
-                                <TextField
-                                  key={param}
-                                  label={param}
-                                  size="small"
-                                  value={endpointParameters[connection.apiEndpointId]?.[param] || ''}
-                                  onChange={(e) => {
-                                    // Allow GUID format for ID parameters
-                                    if (param.toLowerCase().includes('id')) {
-                                      const value = e.target.value.replace(/[^0-9a-fA-F-]/g, '');
-                                      handleParameterChange(connection.apiEndpointId, param, value);
-                                    } else {
-                                      handleParameterChange(connection.apiEndpointId, param, e.target.value);
-                                    }
-                                  }}
-                                  error={!!(param.toLowerCase().includes('id') && 
-                                         endpointParameters[connection.apiEndpointId]?.[param] && 
-                                         !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(endpointParameters[connection.apiEndpointId][param]))}
-                                  helperText={param.toLowerCase().includes('id') ? 'Must be a valid GUID (e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6)' : ''}
-                                  sx={{ minWidth: 120 }}
-                                />
-                              ))}
-                            </Stack>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">-</Typography>
+                          {params.map(param => (
+                            <TextField
+                              key={param}
+                              label={param}
+                              value={endpointParameters[connection.apiEndpointId]?.[param] || ''}
+                              onChange={(e) => handleParameterChange(connection.apiEndpointId, param, e.target.value)}
+                              size="small"
+                              sx={{ mb: 1, width: '100%' }}
+                            />
+                          ))}
+                        </TableCell>
+                        <TableCell>
+                          {isPostOrPut && (
+                            <TextField
+                              label="Request Body (JSON)"
+                              multiline
+                              rows={4}
+                              value={requestBodies[connection.apiEndpointId] || ''}
+                              onChange={(e) => handleRequestBodyChange(connection.apiEndpointId, e.target.value)}
+                              size="small"
+                              sx={{ width: '100%' }}
+                              placeholder="Enter JSON request body"
+                              error={!!requestBodies[connection.apiEndpointId] && !isValidJson(requestBodies[connection.apiEndpointId])}
+                              helperText={!!requestBodies[connection.apiEndpointId] && !isValidJson(requestBodies[connection.apiEndpointId]) ? 'Invalid JSON' : ''}
+                            />
                           )}
                         </TableCell>
                       </TableRow>
@@ -390,6 +404,16 @@ const ApiIntegrations: React.FC = () => {
       )}
     </Box>
   );
+};
+
+// Helper function to validate JSON
+const isValidJson = (str: string): boolean => {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
 };
 
 export default ApiIntegrations; 

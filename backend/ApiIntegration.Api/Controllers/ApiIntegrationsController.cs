@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using ApiIntegration.Api.Data;
 using ApiIntegration.Api.Models;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text;
+using System.Net.Http.Headers;
 
 namespace ApiIntegration.Api.Controllers;
 
@@ -131,6 +134,19 @@ public class ApiIntegrationsController : ControllerBase
                 Console.WriteLine($"Executing API call to: {fullUrl} with method: {conn.ApiEndpoint.Method}");
                 
                 var httpRequest = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
+
+                // Add request body for POST and PUT methods
+                if ((conn.ApiEndpoint.Method == "POST" || conn.ApiEndpoint.Method == "PUT") && 
+                    executionRequest?.RequestBodies != null && 
+                    executionRequest.RequestBodies.TryGetValue(conn.ApiEndpointId, out var requestBody))
+                {
+                    httpRequest.Content = new StringContent(
+                        JsonSerializer.Serialize(requestBody),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
+                }
+
                 var response = await client.SendAsync(httpRequest);
                 
                 Console.WriteLine($"API call completed. Status code: {response.StatusCode}");
@@ -321,4 +337,5 @@ public class ExecutionStep
 public class ExecutionRequest
 {
     public Dictionary<string, string> Parameters { get; set; } = new();
+    public Dictionary<int, object> RequestBodies { get; set; } = new();
 } 

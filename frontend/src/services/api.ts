@@ -140,10 +140,13 @@ export const apiIntegrations = {
     return response.data;
   },
 
-  execute: async (id: number, token?: string, parameters?: Record<string, string>) => {
-    console.log('Executing integration:', { id, token, parameters });
+  execute: async (id: number, token?: string, parameters?: Record<string, string>, requestBodies?: Record<number, any>) => {
+    console.log('Executing integration:', { id, token, parameters, requestBodies });
     const response = await api.post(`/api/apiintegrations/${id}/execute`, 
-      parameters ? { parameters } : undefined,
+      {
+        parameters,
+        requestBodies
+      },
       {
         headers: {
           'Content-Type': 'application/json',
