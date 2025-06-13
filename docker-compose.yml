@@ -27,6 +27,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=db;Database=apiintegration;Username=admin;Password=your_secure_password_here
+      - ApiBaseUrl=http://host.docker.internal:5001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
     volumes:

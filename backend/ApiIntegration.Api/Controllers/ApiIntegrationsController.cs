@@ -11,10 +11,12 @@ namespace ApiIntegration.Api.Controllers;
 public class ApiIntegrationsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public ApiIntegrationsController(ApplicationDbContext context)
+    public ApiIntegrationsController(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
     [HttpPost]
@@ -96,8 +98,9 @@ public class ApiIntegrationsController : ControllerBase
 
         using var client = new HttpClient();
         
-        // Configure for localhost calls
-        client.BaseAddress = new Uri("http://localhost:5001");
+        // Get base URL from configuration
+        var baseUrl = _configuration["ApiBaseUrl"] ?? "http://host.docker.internal:5001";
+        client.BaseAddress = new Uri(baseUrl);
         
         // Add the JWT token from the current request to the client
         var authHeader = Request.Headers["Authorization"].ToString();
