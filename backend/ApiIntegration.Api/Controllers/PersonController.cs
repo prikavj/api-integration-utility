@@ -7,12 +7,14 @@ using ApiIntegration.Api.Data;
 using ApiIntegration.Api.DTOs;
 using ApiIntegration.Api.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ApiIntegration.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class PersonController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
