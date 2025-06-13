@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
 import ApiIntegrations from '../components/ApiIntegrations';
 import { ApiIntegrationBuilder } from '../components/ApiIntegrationBuilder';
-import { Box, Container, Typography } from '@mui/material';
+import { Box, Container, Typography, Button } from '@mui/material';
 
 interface DashboardProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -17,7 +17,7 @@ interface UserProfile {
 
 const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState('profile');
+  const [activeMenu, setActiveMenu] = useState('api-integration-utility');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,6 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
   };
 
   const menuItems = [
+    { id: 'api-integration-utility', label: 'API Integration Utility', icon: '🔧' },
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'integration-builder', label: 'Integration Builder', icon: '⚙️' },
     { id: 'api-integrations', label: 'API Integrations', icon: '🔌' },
@@ -53,6 +54,50 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
 
   const renderContent = () => {
     switch (activeMenu) {
+      case 'api-integration-utility':
+        return (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '10px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h2 style={{
+              fontSize: '1.875rem',
+              fontWeight: 'bold',
+              marginBottom: '2rem',
+              color: '#1e3c72'
+            }}>
+              Welcome to API Integration Utility
+            </h2>
+            <Typography variant="body1" paragraph>
+              This utility helps you create and manage API integrations. You can:
+            </Typography>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              <li style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>👤</span>
+                <div>
+                  <Typography variant="subtitle1" style={{ fontWeight: 'bold' }}>Manage Your Profile</Typography>
+                  <Typography variant="body2" color="text.secondary">View and update your account information</Typography>
+                </div>
+              </li>
+              <li style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>⚙️</span>
+                <div>
+                  <Typography variant="subtitle1" style={{ fontWeight: 'bold' }}>Build Integrations</Typography>
+                  <Typography variant="body2" color="text.secondary">Create new API integrations with a visual builder</Typography>
+                </div>
+              </li>
+              <li style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔌</span>
+                <div>
+                  <Typography variant="subtitle1" style={{ fontWeight: 'bold' }}>Manage Integrations</Typography>
+                  <Typography variant="body2" color="text.secondary">View, edit, and execute your API integrations</Typography>
+                </div>
+              </li>
+            </ul>
+          </div>
+        );
       case 'profile':
         return (
           <div style={{
@@ -138,17 +183,23 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
         width: '250px',
         backgroundColor: '#1e3c72',
         color: 'white',
-        padding: '1rem'
+        padding: '1.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem'
       }}>
         <h1 style={{
           fontSize: '1.5rem',
           fontWeight: 'bold',
-          marginBottom: '2rem',
-          padding: '1rem'
+          marginBottom: '1rem',
+          padding: '0.5rem',
+          borderBottom: '2px solid #2a5298',
+          color: '#ffffff',
+          textAlign: 'center'
         }}>
-          API Integration
+          API Integration Utility
         </h1>
-        <nav>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -158,64 +209,84 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
                 alignItems: 'center',
                 width: '100%',
                 padding: '0.75rem 1rem',
-                marginBottom: '0.5rem',
-                backgroundColor: activeMenu === item.id ? '#2a5298' : 'transparent',
-                border: 'none',
+                backgroundColor: activeMenu === item.id ? '#2a5298' : 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '8px',
                 color: 'white',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s'
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                if (activeMenu !== item.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (activeMenu !== item.id) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                }
               }}
             >
-              <span style={{ marginRight: '0.75rem', fontSize: '1.25rem' }}>{item.icon}</span>
-              <span>{item.label}</span>
+              <span style={{ 
+                marginRight: '0.75rem', 
+                fontSize: '1.25rem',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                padding: '0.25rem',
+                borderRadius: '4px'
+              }}>
+                {item.icon}
+              </span>
+              <span style={{ fontWeight: activeMenu === item.id ? '600' : '400' }}>
+                {item.label}
+              </span>
             </button>
           ))}
         </nav>
       </div>
+
       {/* Main Content */}
       <div style={{ flex: 1 }}>
         {/* Header */}
         <header style={{
           backgroundColor: 'white',
-          padding: '1rem',
+          padding: '1rem 2rem',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           display: 'flex',
           justifyContent: 'flex-end',
+          alignItems: 'center',
           gap: '1rem'
         }}>
-          <button
+          <Button
             onClick={() => window.open('http://localhost:5001/swagger', '_blank')}
-            style={{
+            variant="contained"
+            color="primary"
+            startIcon={<span>📚</span>}
+            sx={{
               backgroundColor: '#2563eb',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
+              '&:hover': {
+                backgroundColor: '#1d4ed8'
+              }
             }}
           >
-            <span>📚</span>
-            Endpoints Swagger
-          </button>
-          <button
+            API Docs
+          </Button>
+          <Button
             onClick={handleLogout}
-            style={{
-              backgroundColor: '#dc2626',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer'
+            variant="contained"
+            color="error"
+            startIcon={<span>🚪</span>}
+            sx={{
+              backgroundColor: '#ef4444',
+              '&:hover': {
+                backgroundColor: '#dc2626'
+              }
             }}
           >
             Logout
-          </button>
+          </Button>
         </header>
-        {/* Main Content Area */}
+
+        {/* Content */}
         <main style={{ padding: '2rem' }}>
           {renderContent()}
         </main>

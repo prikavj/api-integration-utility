@@ -77,6 +77,15 @@ export interface ExecutionRequest {
   parameters: Record<string, string>;
 }
 
+export interface ExecutionResult {
+  results: Array<{
+    endpointId: number;
+    statusCode: number;
+    response: string | object;
+    executionTimeMs: number;
+  }>;
+}
+
 export const authApi = {
   register: async (data: RegisterRequest) => {
     const response = await api.post('/api/auth/register', data);

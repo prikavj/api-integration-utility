@@ -346,17 +346,23 @@ public class ApiIntegrationsController : ControllerBase
                     request.Content = new StringContent(bodyJson, System.Text.Encoding.UTF8, "application/json");
                 }
 
+                // Execute the API call
+                var startTime = DateTime.UtcNow;
                 var response = await httpClient.SendAsync(request);
+                var endTime = DateTime.UtcNow;
+                var executionTime = (long)(endTime - startTime).TotalMilliseconds;
+
                 var content = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"[API Chaining] Response status: {response.StatusCode}");
                 Console.WriteLine($"[API Chaining] Response content: {content}");
+                Console.WriteLine($"[API Chaining] Execution time: {executionTime}ms");
 
-                // Store the result
                 results.Add(new ExecutionResult
                 {
-                    EndpointId = endpoint.Id,
+                    EndpointId = connection.ApiEndpointId,
                     StatusCode = (int)response.StatusCode,
-                    Response = content
+                    Response = content,
+                    ExecutionTimeMs = executionTime
                 });
 
                 // Update context with provided values
@@ -572,6 +578,7 @@ public class ExecutionResult
     public int EndpointId { get; set; }
     public int StatusCode { get; set; }
     public string Response { get; set; } = string.Empty;
+    public long ExecutionTimeMs { get; set; }
 }
 
 public class ExecutionRequest

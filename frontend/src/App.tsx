@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import ApiIntegrations from './components/ApiIntegrations';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,10 +26,6 @@ const App: React.FC = () => {
       <Route 
         path="/dashboard" 
         element={isAuthenticated ? <Dashboard setIsAuthenticated={setIsAuthenticated} /> : <Navigate to="/login" />} 
-      />
-      <Route 
-        path="/api-integrations" 
-        element={<ApiIntegrations />} 
       />
       <Route 
         path="/" 

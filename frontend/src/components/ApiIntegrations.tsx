@@ -31,7 +31,7 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material';
-import { apiIntegrations, ApiIntegration, apiEndpoints, ApiEndpoint } from '../services/api';
+import { apiIntegrations, apiEndpoints, ApiIntegration, ApiEndpoint, ExecutionResult } from '../services/api';
 
 const API_BASE_URL = 'http://localhost:5001';
 
@@ -41,7 +41,7 @@ const ApiIntegrations: React.FC = () => {
   const [selectedIntegration, setSelectedIntegration] = useState<ApiIntegration | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [executionResult, setExecutionResult] = useState<any>(null);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [token, setToken] = useState<string>(sessionStorage.getItem('token') || '');
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [newIntegrationName, setNewIntegrationName] = useState('');
@@ -49,6 +49,7 @@ const ApiIntegrations: React.FC = () => {
   const [endpointParameters, setEndpointParameters] = useState<Record<number, Record<string, string>>>({});
   const [openDialog, setOpenDialog] = useState(false);
   const [requestBodies, setRequestBodies] = useState<Record<number, string>>({});
+  const [requestBodyErrors, setRequestBodyErrors] = useState<Record<number, string>>({});
 
   useEffect(() => {
     fetchIntegrations();
@@ -217,183 +218,241 @@ const ApiIntegrations: React.FC = () => {
     ]);
   };
 
+  const handleIntegrationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const integrationId = parseInt(event.target.value, 10);
+    const integration = integrations.find(i => i.id === integrationId);
+    if (integration) {
+      setSelectedIntegration(integration);
+    }
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        API Integrations
-      </Typography>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Left sidebar */}
+      <Box sx={{ 
+        width: 300, 
+        bgcolor: 'background.paper',
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        p: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2
+      }}>
+        <Typography variant="h5" sx={{ 
+          fontWeight: 'bold', 
+          mb: 2,
+          color: 'primary.main',
+          borderBottom: '2px solid',
+          borderColor: 'primary.main',
+          pb: 1
+        }}>
+          API Integration Utility
+        </Typography>
+        
+        <TextField
+          select
+          label="Select Integration"
+          value={selectedIntegration?.id || ''}
+          onChange={handleIntegrationChange}
+          fullWidth
+          sx={{ mb: 2 }}
+        >
+          {integrations.map((integration) => (
+            <MenuItem key={integration.id} value={integration.id.toString()}>
+              {integration.name}
+            </MenuItem>
+          ))}
+        </TextField>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      ) : (
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="integration-select-label">Select Integration</InputLabel>
-          <Select
-            labelId="integration-select-label"
-            id="integration-select"
-            value={selectedIntegration?.id || ''}
-            label="Select Integration"
-            onChange={(e) => handleSelectIntegration(integrations.find(i => i.id === e.target.value)!)}
-          >
-            {integrations.map((integration) => (
-              <MenuItem key={integration.id} value={integration.id}>
-                {integration.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
+        <TextField
+          label="Token"
+          value={token}
+          onChange={(e) => {
+            const newToken = e.target.value;
+            setToken(newToken);
+            sessionStorage.setItem('token', newToken);
+          }}
+          fullWidth
+          sx={{ mb: 2 }}
+        />
 
-      {selectedIntegration && (
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6">Integration Details</Typography>
-          <Typography>Name: {selectedIntegration.name}</Typography>
-          <Typography>Created At: {new Date(selectedIntegration.createdAt).toLocaleString()}</Typography>
-          <Typography>Last Modified: {selectedIntegration.lastModifiedAt ? new Date(selectedIntegration.lastModifiedAt).toLocaleString() : 'N/A'}</Typography>
-          <Typography>Connections: {selectedIntegration.connections.length}</Typography>
-        </Box>
-      )}
+        <Button
+          variant="contained"
+          onClick={handleExecuteIntegration}
+          disabled={!selectedIntegration || !token || loading}
+          fullWidth
+          sx={{ mb: 2 }}
+        >
+          {loading ? 'Executing...' : 'Execute Integration'}
+        </Button>
 
-      {selectedIntegration && (
-        <>
-          <TableContainer component={Paper} sx={{ mb: 3 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Sequence</TableCell>
-                  <TableCell>API Endpoint</TableCell>
-                  <TableCell>Method</TableCell>
-                  <TableCell>URL</TableCell>
-                  <TableCell>Parameters</TableCell>
-                  <TableCell>Request Body</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {selectedIntegration.connections
-                  .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-                  .map((connection) => {
-                    const endpoint = getEndpointDetails(connection.apiEndpointId);
-                    if (!endpoint) return null;
-                    const params = getEndpointParameters(endpoint.url);
-                    const isPostOrPut = endpoint.method === 'POST' || endpoint.method === 'PUT';
-                    
-                    return (
-                      <TableRow key={`${connection.apiEndpointId}-${connection.sequenceNumber}`}>
-                        <TableCell>{connection.sequenceNumber}</TableCell>
-                        <TableCell>{endpoint.name}</TableCell>
-                        <TableCell>{endpoint.method}</TableCell>
-                        <TableCell>{endpoint.url}</TableCell>
-                        <TableCell>
-                          {params.map(param => (
-                            <TextField
-                              key={param}
-                              label={param}
-                              value={endpointParameters[connection.apiEndpointId]?.[param] || ''}
-                              onChange={(e) => handleParameterChange(connection.apiEndpointId, param, e.target.value)}
-                              size="small"
-                              sx={{ mb: 1, width: '100%' }}
-                            />
-                          ))}
-                        </TableCell>
-                        <TableCell>
-                          {isPostOrPut && (
-                            <TextField
-                              label="Request Body (JSON)"
-                              multiline
-                              rows={4}
-                              value={requestBodies[connection.apiEndpointId] || ''}
-                              onChange={(e) => handleRequestBodyChange(connection.apiEndpointId, e.target.value)}
-                              size="small"
-                              sx={{ width: '100%' }}
-                              placeholder="Enter JSON request body"
-                              error={!!requestBodies[connection.apiEndpointId] && !isValidJson(requestBodies[connection.apiEndpointId])}
-                              helperText={!!requestBodies[connection.apiEndpointId] && !isValidJson(requestBodies[connection.apiEndpointId]) ? 'Invalid JSON' : ''}
-                            />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <Stack direction="row" spacing={2}>
-            <TextField
-              label="Token"
-              type="password"
-              value={token}
-              onChange={(e) => {
-                const newToken = e.target.value;
-                setToken(newToken);
-                sessionStorage.setItem('token', newToken);
-              }}
-              sx={{ mb: 2, width: '300px' }}
-              placeholder="Enter your API token"
-              helperText="Token will be masked for security"
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => {
-                console.log('Execute button clicked');
-                handleExecuteIntegration();
-              }}
-              disabled={loading || !token}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Execute Integration'}
-            </Button>
-          </Stack>
-
-          {executionResult && (
-            <Paper sx={{ mt: 3, p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Execution Results
+        {selectedIntegration && (
+          <Box sx={{ 
+            mt: 2,
+            p: 2,
+            bgcolor: 'background.default',
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Integration Details
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Created: {new Date(selectedIntegration.createdAt).toLocaleString()}
+            </Typography>
+            {selectedIntegration.lastModifiedAt && (
+              <Typography variant="body2" color="text.secondary">
+                Last Modified: {new Date(selectedIntegration.lastModifiedAt).toLocaleString()}
               </Typography>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Endpoint ID</TableCell>
-                      <TableCell>Status Code</TableCell>
-                      <TableCell>Response</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {executionResult.results.map((result: any, index: number) => {
-                      const endpoint = getEndpointDetails(result.endpointId);
-                      return (
-                        <TableRow key={index}>
-                          <TableCell>{endpoint ? endpoint.name : 'Unknown'}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={result.statusCode} 
-                              color={result.statusCode >= 200 && result.statusCode < 300 ? 'success' : 'error'}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
-                              {typeof result.response === 'string' 
-                                ? result.response 
-                                : JSON.stringify(result.response, null, 2)}
-                            </pre>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Paper>
-          )}
-        </>
-      )}
+            )}
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+      </Box>
+
+      {/* Main content */}
+      <Box sx={{ flex: 1, p: 3, overflow: 'auto' }}>
+        {selectedIntegration && (
+          <>
+            <Typography variant="h5" gutterBottom>
+              {selectedIntegration.name}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Created: {new Date(selectedIntegration.createdAt).toLocaleString()}
+            </Typography>
+
+            {selectedIntegration.connections.map((connection, index) => {
+              const endpoint = getEndpointDetails(connection.apiEndpointId);
+              if (!endpoint) return null;
+
+              return (
+                <Paper key={index} sx={{ p: 2, mb: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    {endpoint.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    {endpoint.description}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Method: {endpoint.method}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    URL: {endpoint.url}
+                  </Typography>
+
+                  {/* Parameters */}
+                  {getEndpointParameters(endpoint.url).length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Parameters
+                      </Typography>
+                      {getEndpointParameters(endpoint.url).map((paramName) => (
+                        <TextField
+                          key={paramName}
+                          label={paramName}
+                          value={endpointParameters[endpoint.id]?.[paramName] || ''}
+                          onChange={(e) => handleParameterChange(endpoint.id, paramName, e.target.value)}
+                          fullWidth
+                          margin="normal"
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  )}
+
+                  {/* Request Body */}
+                  {endpoint.method === 'POST' || endpoint.method === 'PUT' ? (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Request Body
+                      </Typography>
+                      <TextField
+                        multiline
+                        rows={4}
+                        value={requestBodies[endpoint.id] || ''}
+                        onChange={(e) => handleRequestBodyChange(endpoint.id, e.target.value)}
+                        fullWidth
+                        placeholder="Enter JSON request body"
+                        error={!!requestBodyErrors[endpoint.id]}
+                        helperText={requestBodyErrors[endpoint.id] || 'Enter valid JSON'}
+                      />
+                    </Box>
+                  ) : null}
+                </Paper>
+              );
+            })}
+
+            {executionResult && (
+              <Paper sx={{ mt: 3, p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Execution Results
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Endpoint ID</TableCell>
+                        <TableCell>Status Code</TableCell>
+                        <TableCell>Execution Time</TableCell>
+                        <TableCell>Response</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {executionResult.results.map((result: any, index: number) => {
+                        const endpoint = getEndpointDetails(result.endpointId);
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{endpoint ? endpoint.name : 'Unknown'}</TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={result.statusCode} 
+                                color={result.statusCode >= 200 && result.statusCode < 300 ? 'success' : 'error'}
+                              />
+                            </TableCell>
+                            <TableCell>{result.executionTimeMs || 0}ms</TableCell>
+                            <TableCell>
+                              <Box sx={{ 
+                                maxWidth: '600px',
+                                overflowX: 'auto',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: '4px',
+                                padding: '8px',
+                                '& pre': {
+                                  margin: 0,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  fontFamily: 'monospace',
+                                  fontSize: '14px',
+                                  maxHeight: '200px',
+                                  overflowY: 'auto',
+                                  overflowX: 'auto'
+                                }
+                              }}>
+                                <pre>
+                                  {typeof result.response === 'string' 
+                                    ? result.response 
+                                    : JSON.stringify(result.response, null, 2)}
+                                </pre>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            )}
+          </>
+        )}
+      </Box>
     </Box>
   );
 };
