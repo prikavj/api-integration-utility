@@ -360,38 +360,30 @@ const ApiIntegrations: React.FC = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Step</TableCell>
-                      <TableCell>API Endpoint</TableCell>
-                      <TableCell>Method</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Response Time</TableCell>
+                      <TableCell>Endpoint ID</TableCell>
+                      <TableCell>Status Code</TableCell>
+                      <TableCell>Response</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {executionResult.steps.map((step: any, index: number) => {
-                      const endpoint = getEndpointDetails(step.apiEndpointId);
+                    {executionResult.results.map((result: any, index: number) => {
+                      const endpoint = getEndpointDetails(result.endpointId);
                       return (
                         <TableRow key={index}>
-                          <TableCell>{index + 1}</TableCell>
                           <TableCell>{endpoint ? endpoint.name : 'Unknown'}</TableCell>
                           <TableCell>
                             <Chip 
-                              label={endpoint ? endpoint.method : 'Unknown'} 
-                              color={
-                                endpoint?.method === 'GET' ? 'success' :
-                                endpoint?.method === 'POST' ? 'primary' :
-                                endpoint?.method === 'PUT' ? 'warning' :
-                                endpoint?.method === 'DELETE' ? 'error' : 'default'
-                              }
+                              label={result.statusCode} 
+                              color={result.statusCode >= 200 && result.statusCode < 300 ? 'success' : 'error'}
                             />
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={step.statusCode} 
-                              color={step.statusCode >= 200 && step.statusCode < 300 ? 'success' : 'error'}
-                            />
+                            <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
+                              {typeof result.response === 'string' 
+                                ? result.response 
+                                : JSON.stringify(result.response, null, 2)}
+                            </pre>
                           </TableCell>
-                          <TableCell>{step.runTime.toFixed(2)}ms</TableCell>
                         </TableRow>
                       );
                     })}

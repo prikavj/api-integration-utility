@@ -145,12 +145,12 @@ export const apiIntegrations = {
     const response = await api.post(`/api/apiintegrations/${id}/execute`, 
       {
         parameters,
-        requestBodies
+        requestBodies,
+        token
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         }
       }
     );

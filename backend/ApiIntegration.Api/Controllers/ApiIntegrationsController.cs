@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text;
 using System.Net.Http.Headers;
+using System.Linq;
 
 namespace ApiIntegration.Api.Controllers;
 
@@ -15,11 +16,111 @@ public class ApiIntegrationsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly Dictionary<string, string> _apiEndpointMapping;
+    private readonly Dictionary<string, Dictionary<string, object>> _chainMapping;
 
     public ApiIntegrationsController(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
         _configuration = configuration;
+        _apiEndpointMapping = new Dictionary<string, string>();
+        _chainMapping = new Dictionary<string, Dictionary<string, object>>();
+
+        try
+        {
+            // In Docker, the files will be in the /app/Data directory
+            var basePath = AppDomain.CurrentDomain.BaseDirectory;
+            var dataPath = Path.Combine(basePath, "Data");
+            
+            Console.WriteLine($"[API Chaining] Looking for mapping files in: {dataPath}");
+            Console.WriteLine($"[API Chaining] Directory contents: {string.Join(", ", Directory.GetFiles(dataPath))}");
+
+            // Load API endpoint mapping
+            var endpointMappingPath = Path.Combine(dataPath, "api_endpoint_mapping.json");
+            if (System.IO.File.Exists(endpointMappingPath))
+            {
+                var endpointMappingJson = System.IO.File.ReadAllText(endpointMappingPath);
+                Console.WriteLine($"[API Chaining] Endpoint mapping file content: {endpointMappingJson}");
+                
+                try
+                {
+                    // Use JsonDocument for more control over the deserialization
+                    using var document = JsonDocument.Parse(endpointMappingJson);
+                    var root = document.RootElement;
+                    var apiEndpoints = root.GetProperty("api_endpoints");
+
+                    foreach (var category in apiEndpoints.EnumerateObject())
+                    {
+                        Console.WriteLine($"[API Chaining] Processing category: {category.Name}");
+                        foreach (var mapping in category.Value.EnumerateObject())
+                        {
+                            var key = mapping.Name;
+                            var value = mapping.Value.GetString();
+                            _apiEndpointMapping[key] = value;
+                            Console.WriteLine($"[API Chaining] Added mapping: {key} -> {value}");
+                        }
+                    }
+                    Console.WriteLine($"[API Chaining] Loaded {_apiEndpointMapping.Count} endpoint mappings");
+                    Console.WriteLine($"[API Chaining] Mappings: {string.Join(", ", _apiEndpointMapping.Select(m => $"{m.Key} -> {m.Value}"))}");
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine($"[API Chaining] JSON deserialization error: {ex.Message}");
+                    Console.WriteLine($"[API Chaining] JSON content: {endpointMappingJson}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[API Chaining] Warning: Endpoint mapping file not found at {endpointMappingPath}");
+            }
+
+            // Load chain mapping
+            var chainMappingPath = Path.Combine(dataPath, "chain_mapping.json");
+            if (System.IO.File.Exists(chainMappingPath))
+            {
+                var chainMappingJson = System.IO.File.ReadAllText(chainMappingPath);
+                Console.WriteLine($"[API Chaining] Chain mapping file content: {chainMappingJson}");
+                
+                try
+                {
+                    using var document = JsonDocument.Parse(chainMappingJson);
+                    var root = document.RootElement;
+
+                    foreach (var category in root.EnumerateObject())
+                    {
+                        var categoryDict = new Dictionary<string, object>();
+                        foreach (var endpoint in category.Value.EnumerateObject())
+                        {
+                            // Clone the endpoint value to avoid disposal issues
+                            var endpointValue = endpoint.Value.Clone();
+                            categoryDict[endpoint.Name] = endpointValue;
+                        }
+                        _chainMapping[category.Name] = categoryDict;
+                    }
+
+                    Console.WriteLine($"[API Chaining] Loaded chain mapping for {_chainMapping.Count} categories");
+                    foreach (var category in _chainMapping)
+                    {
+                        Console.WriteLine($"[API Chaining] Category {category.Key} has {category.Value.Count} endpoints");
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine($"[API Chaining] JSON deserialization error: {ex.Message}");
+                    Console.WriteLine($"[API Chaining] JSON content: {chainMappingJson}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[API Chaining] Warning: Chain mapping file not found at {chainMappingPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[API Chaining] Error loading mapping files: {ex.Message}");
+            Console.WriteLine($"[API Chaining] Stack trace: {ex.StackTrace}");
+            // Don't throw the exception, just log it and continue with empty mappings
+        }
     }
 
     [HttpPost]
@@ -85,100 +186,245 @@ public class ApiIntegrationsController : ControllerBase
     [HttpPost("{id}/execute")]
     public async Task<ActionResult<ExecutionResult>> Execute(int id, [FromBody] ExecutionRequest? executionRequest = null)
     {
-        var integration = await _context.ApiIntegrations
-            .Include(i => i.Connections)
-            .ThenInclude(c => c.ApiEndpoint)
-            .FirstOrDefaultAsync(i => i.Id == id);
-
-        if (integration == null)
-            return NotFound();
-
-        var result = new ExecutionResult
+        try
         {
-            IntegrationId = integration.Id,
-            Steps = new List<ExecutionStep>()
-        };
+            Console.WriteLine($"[API Chaining] Starting execution for integration ID: {id}");
+            Console.WriteLine($"[API Chaining] Execution request: {JsonSerializer.Serialize(executionRequest)}");
 
-        using var client = new HttpClient();
-        
-        // Get base URL from configuration
-        var baseUrl = _configuration["ApiBaseUrl"] ?? "http://host.docker.internal:5001";
-        client.BaseAddress = new Uri(baseUrl);
-        
-        // Add the JWT token from the current request to the client
-        var authHeader = Request.Headers["Authorization"].ToString();
-        if (!string.IsNullOrEmpty(authHeader))
-        {
-            client.DefaultRequestHeaders.Add("Authorization", authHeader);
-        }
+            var apiIntegration = await _context.ApiIntegrations
+                .Include(a => a.Connections)
+                    .ThenInclude(c => c.ApiEndpoint)
+                .FirstOrDefaultAsync(a => a.Id == id);
 
-        foreach (var conn in integration.Connections.OrderBy(c => c.SequenceNumber))
-        {
-            var startTime = DateTime.UtcNow;
-            
-            try
+            if (apiIntegration == null)
             {
-                // Replace parameters in URL
-                var path = conn.ApiEndpoint.Url;
+                Console.WriteLine($"[API Chaining] Integration not found for ID: {id}");
+                return NotFound();
+            }
+
+            Console.WriteLine($"[API Chaining] Found integration: {apiIntegration.Name}");
+            Console.WriteLine($"[API Chaining] Number of connections: {apiIntegration.Connections.Count}");
+
+            var results = new List<ExecutionResult>();
+            var context = new Dictionary<string, object>();
+
+            // Create HttpClient with base address
+            using var httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri("http://host.docker.internal:5001/");
+            
+            // Add authorization header if token is provided
+            if (executionRequest?.Token != null)
+            {
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", executionRequest.Token);
+                Console.WriteLine("[API Chaining] Added authorization header with token");
+            }
+            
+            Console.WriteLine($"[API Chaining] Set HttpClient base address to: {httpClient.BaseAddress}");
+
+            foreach (var connection in apiIntegration.Connections.OrderBy(c => c.SequenceNumber))
+            {
+                var endpoint = connection.ApiEndpoint;
+                Console.WriteLine($"\n[API Chaining] ===== Processing Connection {connection.SequenceNumber} =====");
+                Console.WriteLine($"[API Chaining] Endpoint: {endpoint.Method} {endpoint.Url}");
+                Console.WriteLine($"[API Chaining] Category: {endpoint.Category}");
+                Console.WriteLine($"[API Chaining] Endpoint ID: {endpoint.Id}");
+                
+                // Debug logging for endpoint mapping
+                Console.WriteLine($"[API Chaining] Available mappings: {string.Join(", ", _apiEndpointMapping.Keys)}");
+                var endpointKey = $"{endpoint.Method} {endpoint.Url}";
+                Console.WriteLine($"[API Chaining] Looking for mapping with key: {endpointKey}");
+                
+                if (!_apiEndpointMapping.TryGetValue(endpointKey, out var shortName))
+                {
+                    Console.WriteLine($"[API Chaining] No mapping found for endpoint: {endpointKey}");
+                    Console.WriteLine($"[API Chaining] Available mappings: {string.Join(", ", _apiEndpointMapping.Keys)}");
+                    return StatusCode(500, $"No mapping found for endpoint: {endpointKey}");
+                }
+
+                Console.WriteLine($"[API Chaining] Found mapping: {endpointKey} -> {shortName}");
+
+                // Map the category from database to mapping file
+                var mappingCategory = endpoint.Category.ToLower() switch
+                {
+                    "people" => "persons",
+                    _ => endpoint.Category.ToLower()
+                };
+
+                if (!_chainMapping.TryGetValue(mappingCategory, out var categoryMapping))
+                {
+                    Console.WriteLine($"[API Chaining] No category mapping found for: {mappingCategory}");
+                    Console.WriteLine($"[API Chaining] Available categories: {string.Join(", ", _chainMapping.Keys)}");
+                    return StatusCode(500, $"No category mapping found for: {mappingCategory}");
+                }
+
+                if (!categoryMapping.TryGetValue(shortName, out var endpointMapping))
+                {
+                    Console.WriteLine($"[API Chaining] No endpoint mapping found for: {shortName}");
+                    Console.WriteLine($"[API Chaining] Available endpoints in category {mappingCategory}: {string.Join(", ", categoryMapping.Keys)}");
+                    return StatusCode(500, $"No endpoint mapping found for: {shortName}");
+                }
+
+                Console.WriteLine($"[API Chaining] Found chain mapping for {mappingCategory}.{shortName}");
+                Console.WriteLine($"[API Chaining] Chain mapping content: {endpointMapping}");
+
+                // Get the mapping for this endpoint
+                var mapping = JsonSerializer.Deserialize<EndpointMapping>(endpointMapping.ToString(), new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                if (mapping == null)
+                {
+                    Console.WriteLine($"[API Chaining] Failed to deserialize chain mapping for {shortName}");
+                    return StatusCode(500, $"Failed to deserialize chain mapping for {shortName}");
+                }
+
+                Console.WriteLine($"[API Chaining] Deserialized mapping - Requires: {string.Join(", ", mapping.Requires)}");
+                Console.WriteLine($"[API Chaining] Deserialized mapping - Provides: {JsonSerializer.Serialize(mapping.Provides)}");
+
+                // Get the original path from the endpoint
+                var originalPath = endpoint.Url;
+                Console.WriteLine($"[API Chaining] Original path: {originalPath}");
+
+                // Get request parameters from execution request and context
+                var requestParams = new Dictionary<string, object>();
                 if (executionRequest?.Parameters != null)
                 {
                     foreach (var param in executionRequest.Parameters)
                     {
-                        path = path.Replace($"{{{param.Key}}}", param.Value);
+                        requestParams[param.Key] = param.Value;
                     }
                 }
-                
-                // Ensure path starts with a single slash
-                path = path.TrimStart('/');
-                var fullUrl = $"{client.BaseAddress}/{path}";
-                Console.WriteLine($"Executing API call to: {fullUrl} with method: {conn.ApiEndpoint.Method}");
-                
-                var httpRequest = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
+                Console.WriteLine($"[API Chaining] Request parameters: {JsonSerializer.Serialize(requestParams)}");
 
-                // Add request body for POST and PUT methods
-                if ((conn.ApiEndpoint.Method == "POST" || conn.ApiEndpoint.Method == "PUT") && 
-                    executionRequest?.RequestBodies != null && 
-                    executionRequest.RequestBodies.TryGetValue(conn.ApiEndpointId, out var requestBody))
+                // Check required parameters
+                Console.WriteLine($"[API Chaining] Checking required parameters: {string.Join(", ", mapping.Requires)}");
+                foreach (var required in mapping.Requires)
                 {
-                    httpRequest.Content = new StringContent(
-                        JsonSerializer.Serialize(requestBody),
-                        Encoding.UTF8,
-                        "application/json"
-                    );
+                    if (!requestParams.ContainsKey(required) && !context.ContainsKey(required))
+                    {
+                        return BadRequest($"Missing required parameter: {required}");
+                    }
                 }
 
-                var response = await client.SendAsync(httpRequest);
-                
-                Console.WriteLine($"API call completed. Status code: {response.StatusCode}");
+                // Build the URL with parameters
+                var url = originalPath;
+                // First try to replace from context
+                foreach (var param in context)
+                {
+                    // Extract the key without the API name prefix (e.g., "createPerson.id" -> "id")
+                    var key = param.Key.Split('.').Last();
+                    var placeholder = $"{{{key}}}";
+                    if (url.Contains(placeholder))
+                    {
+                        url = url.Replace(placeholder, param.Value.ToString());
+                        Console.WriteLine($"[API Chaining] Replaced {placeholder} with {param.Value} from context (key: {param.Key})");
+                    }
+                }
+                // Then try to replace from request parameters
+                foreach (var param in requestParams)
+                {
+                    var placeholder = $"{{{param.Key}}}";
+                    if (url.Contains(placeholder))
+                    {
+                        url = url.Replace(placeholder, param.Value.ToString());
+                        Console.WriteLine($"[API Chaining] Replaced {placeholder} with {param.Value} from request parameters");
+                    }
+                }
+                Console.WriteLine($"[API Chaining] Final URL: {url}");
+                Console.WriteLine($"[API Chaining] HTTP Method: {endpoint.Method}");
+
+                // Make the API call
+                var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), url);
+
+                // Add request body for POST and PUT methods
+                if ((endpoint.Method == "POST" || endpoint.Method == "PUT") && 
+                    executionRequest?.RequestBodies != null && 
+                    executionRequest.RequestBodies.TryGetValue(endpoint.Id, out var requestBody))
+                {
+                    var bodyJson = JsonSerializer.Serialize(requestBody);
+                    Console.WriteLine($"[API Chaining] Request body: {bodyJson}");
+                    request.Content = new StringContent(bodyJson, System.Text.Encoding.UTF8, "application/json");
+                }
+
+                var response = await httpClient.SendAsync(request);
                 var content = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Response content: {content}");
-                
-                result.Steps.Add(new ExecutionStep
+                Console.WriteLine($"[API Chaining] Response status: {response.StatusCode}");
+                Console.WriteLine($"[API Chaining] Response content: {content}");
+
+                // Store the result
+                results.Add(new ExecutionResult
                 {
-                    ApiEndpointId = conn.ApiEndpointId,
+                    EndpointId = endpoint.Id,
                     StatusCode = (int)response.StatusCode,
-                    RunTime = (DateTime.UtcNow - startTime).TotalMilliseconds
+                    Response = content
                 });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error executing API call to {conn.ApiEndpoint.Url}: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                
-                // If the API call fails, add a step with error status
-                result.Steps.Add(new ExecutionStep
+
+                // Update context with provided values
+                if (response.IsSuccessStatusCode && mapping.Provides != null)
                 {
-                    ApiEndpointId = conn.ApiEndpointId,
-                    StatusCode = 500, // Internal Server Error
-                    RunTime = (DateTime.UtcNow - startTime).TotalMilliseconds
-                });
+                    try
+                    {
+                        var responseData = JsonSerializer.Deserialize<JsonElement>(content);
+                        Console.WriteLine($"[API Chaining] Response data: {JsonSerializer.Serialize(responseData)}");
+                        
+                        // Get the provides dictionary directly from the mapping
+                        var provides = mapping.Provides;
+                        Console.WriteLine($"[API Chaining] Provides mapping: {JsonSerializer.Serialize(provides)}");
+
+                        foreach (var provide in provides)
+                        {
+                            Console.WriteLine($"[API Chaining] Processing provide mapping: {provide.Key} -> {provide.Value}");
+                            
+                            // Get the actual property name from the response
+                            var propertyName = provide.Key;
+                            Console.WriteLine($"[API Chaining] Looking for property: {propertyName}");
+                            
+                            if (responseData.TryGetProperty(propertyName, out var valueElement))
+                            {
+                                var value = valueElement.GetString();
+                                // Store with the full path as the key
+                                context[provide.Value] = value;
+                                Console.WriteLine($"[API Chaining] Added to context: {provide.Value} = {value}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[API Chaining] Property not found: {propertyName}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[API Chaining] Error parsing response: {ex.Message}");
+                        Console.WriteLine($"[API Chaining] Response content: {content}");
+                        Console.WriteLine($"[API Chaining] Stack trace: {ex.StackTrace}");
+                    }
+                }
+
+                // Log current context state
+                Console.WriteLine($"[API Chaining] Current context: {JsonSerializer.Serialize(context)}");
+
+                // Add delay between API calls (except for the last one)
+                if (connection != apiIntegration.Connections.OrderBy(c => c.SequenceNumber).Last())
+                {
+                    var delayStart = DateTime.UtcNow;
+                    Console.WriteLine($"[API Chaining] Starting 2-second delay at {delayStart}");
+                    await Task.Delay(2000); // 2 second delay
+                    var delayEnd = DateTime.UtcNow;
+                    Console.WriteLine($"[API Chaining] Finished 2-second delay at {delayEnd}. Total delay: {(delayEnd - delayStart).TotalSeconds} seconds");
+                }
+
+                // Log context before next API call
+                Console.WriteLine($"[API Chaining] Context before next API call: {JsonSerializer.Serialize(context)}");
             }
 
-            // Wait for 2 seconds before the next API call
-            await Task.Delay(2000);
+            return Ok(new { Results = results });
         }
-
-        return Ok(result);
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[API Chaining] Error executing API call: {ex.Message}");
+            Console.WriteLine($"[API Chaining] Stack trace: {ex.StackTrace}");
+            return StatusCode(500, ex.Message);
+        }
     }
 
     [HttpPut("{id}")]
@@ -323,19 +569,25 @@ public class ApiEndpointResponseDto
 
 public class ExecutionResult
 {
-    public int IntegrationId { get; set; }
-    public List<ExecutionStep> Steps { get; set; } = new();
-}
-
-public class ExecutionStep
-{
-    public int ApiEndpointId { get; set; }
+    public int EndpointId { get; set; }
     public int StatusCode { get; set; }
-    public double RunTime { get; set; }
+    public string Response { get; set; } = string.Empty;
 }
 
 public class ExecutionRequest
 {
-    public Dictionary<string, string> Parameters { get; set; } = new();
+    public Dictionary<string, object> Parameters { get; set; } = new();
     public Dictionary<int, object> RequestBodies { get; set; } = new();
+    public string? Token { get; set; }
+}
+
+public class ApiEndpointMapping
+{
+    public Dictionary<string, Dictionary<string, string>> ApiEndpoints { get; set; } = new();
+}
+
+public class EndpointMapping
+{
+    public List<string> Requires { get; set; } = new();
+    public Dictionary<string, string> Provides { get; set; } = new();
 } 

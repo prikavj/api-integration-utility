@@ -1,0 +1,18 @@
+{
+  "api_endpoints": {
+    "products": {
+      "GET /api/products": "getAllProducts",
+      "POST /api/products": "createProduct",
+      "GET /api/products/{id}": "getProduct",
+      "PUT /api/products/{id}": "updateProduct",
+      "DELETE /api/products/{id}": "deleteProduct"
+    },
+    "persons": {
+      "GET /api/person": "getAllPersons",
+      "POST /api/person": "createPerson",
+      "GET /api/person/{id}": "getPerson",
+      "PUT /api/person/{id}": "updatePerson",
+      "DELETE /api/person/{id}": "deletePerson"
+    }
+  }
+} 
