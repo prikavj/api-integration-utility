@@ -88,7 +88,7 @@ const ApiIntegrations: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Funny API Integrations
+        API Integrations
       </Typography>
 
       {loading ? (
