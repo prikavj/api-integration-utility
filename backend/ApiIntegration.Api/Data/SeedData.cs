@@ -51,6 +51,47 @@ public static class SeedData
                 Method = "DELETE",
                 Description = "Delete a person record",
                 Category = "People"
+            },
+            // Product endpoints
+            new ApiEndpoint
+            {
+                Name = "Get All Products",
+                Url = "/api/product",
+                Method = "GET",
+                Description = "Get a list of all products",
+                Category = "Products"
+            },
+            new ApiEndpoint
+            {
+                Name = "Get Product by ID",
+                Url = "/api/product/{id}",
+                Method = "GET",
+                Description = "Get a product by its ID",
+                Category = "Products"
+            },
+            new ApiEndpoint
+            {
+                Name = "Create Product",
+                Url = "/api/product",
+                Method = "POST",
+                Description = "Create a new product",
+                Category = "Products"
+            },
+            new ApiEndpoint
+            {
+                Name = "Update Product",
+                Url = "/api/product/{id}",
+                Method = "PUT",
+                Description = "Update an existing product",
+                Category = "Products"
+            },
+            new ApiEndpoint
+            {
+                Name = "Delete Product",
+                Url = "/api/product/{id}",
+                Method = "DELETE",
+                Description = "Delete a product",
+                Category = "Products"
             }
         );
 
