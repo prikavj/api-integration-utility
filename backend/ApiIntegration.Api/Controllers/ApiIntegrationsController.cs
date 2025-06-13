@@ -20,6 +20,11 @@ public class ApiIntegrationsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiIntegrationResponseDto>> Create(ApiIntegrationDto dto)
     {
+        // Prevent duplicate names (case-insensitive)
+        if (await _context.ApiIntegrations.AnyAsync(i => i.Name.ToLower() == dto.Name.ToLower()))
+        {
+            return BadRequest($"An integration with the name '{dto.Name}' already exists.");
+        }
         var integration = new Models.ApiIntegration
         {
             Name = dto.Name,

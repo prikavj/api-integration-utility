@@ -113,6 +113,16 @@ const ApiIntegrations: React.FC = () => {
       </FormControl>
 
       {selectedIntegration && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6">Integration Details</Typography>
+          <Typography>Name: {selectedIntegration.name}</Typography>
+          <Typography>Created At: {new Date(selectedIntegration.createdAt).toLocaleString()}</Typography>
+          <Typography>Last Modified: {selectedIntegration.lastModifiedAt ? new Date(selectedIntegration.lastModifiedAt).toLocaleString() : 'N/A'}</Typography>
+          <Typography>Connections: {selectedIntegration.connections.length}</Typography>
+        </Box>
+      )}
+
+      {selectedIntegration && (
         <>
           <TableContainer component={Paper} sx={{ mb: 3 }}>
             <Table>

@@ -41,6 +41,7 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
   const [connections, setConnections] = useState<{ apiEndpointId: number; sequenceNumber: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [integration, setIntegration] = useState<ApiIntegration | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
@@ -102,6 +103,7 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
     try {
       setLoading(true);
       setError(null);
+      setSuccess(null);
       const response = await api.post('/api/apiintegrations', {
         name: integrationName,
         connections: connections.map((conn, index) => ({
@@ -110,11 +112,11 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
         }))
       });
       // If we get here, the request was successful (201 or 200)
-      alert('Integration saved successfully!');
+      setSuccess('Integration saved successfully!');
       setIntegrationName('');
       setConnections([]);
-    } catch (err) {
-      setError('Failed to save integration. Please try again.');
+    } catch (err: any) {
+      setError(err.response?.data || 'Failed to save integration. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -172,6 +174,12 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
           </Alert>
         )}
 
