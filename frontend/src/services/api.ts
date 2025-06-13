@@ -60,6 +60,10 @@ export interface ApiIntegration {
   name: string;
   createdAt: string;
   lastModifiedAt: string | null;
+  connections: Array<{
+    apiEndpointId: number;
+    sequenceNumber: number;
+  }>;
 }
 
 export interface ApiIntegrationConnection {

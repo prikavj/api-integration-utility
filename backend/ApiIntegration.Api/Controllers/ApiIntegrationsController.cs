@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ApiIntegration.Api.Data;
 using ApiIntegration.Api.Models;
+using System.Net.Http;
 
 namespace ApiIntegration.Api.Controllers;
 
@@ -64,6 +65,47 @@ public class ApiIntegrationsController : ControllerBase
 
         return integration;
     }
+
+    [HttpPost("{id}/execute")]
+    public async Task<ActionResult<ExecutionResult>> Execute(int id)
+    {
+        var integration = await _context.ApiIntegrations
+            .Include(i => i.Connections)
+            .ThenInclude(c => c.ApiEndpoint)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (integration == null)
+            return NotFound();
+
+        var result = new ExecutionResult
+        {
+            IntegrationId = integration.Id,
+            Steps = new List<ExecutionStep>()
+        };
+
+        foreach (var conn in integration.Connections.OrderBy(c => c.SequenceNumber))
+        {
+            var startTime = DateTime.UtcNow;
+            var response = await ExecuteApiEndpoint(conn.ApiEndpoint);
+            var endTime = DateTime.UtcNow;
+
+            result.Steps.Add(new ExecutionStep
+            {
+                ApiEndpointId = conn.ApiEndpointId,
+                StatusCode = (int)response.StatusCode,
+                RunTime = (endTime - startTime).TotalMilliseconds
+            });
+        }
+
+        return result;
+    }
+
+    private async Task<HttpResponseMessage> ExecuteApiEndpoint(ApiEndpoint endpoint)
+    {
+        using var client = new HttpClient();
+        var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), endpoint.Url);
+        return await client.SendAsync(request);
+    }
 }
 
 public class ApiIntegrationDto
@@ -76,4 +118,17 @@ public class ApiIntegrationConnectionDto
 {
     public int ApiEndpointId { get; set; }
     public int SequenceNumber { get; set; }
+}
+
+public class ExecutionResult
+{
+    public int IntegrationId { get; set; }
+    public List<ExecutionStep> Steps { get; set; } = new();
+}
+
+public class ExecutionStep
+{
+    public int ApiEndpointId { get; set; }
+    public int StatusCode { get; set; }
+    public double RunTime { get; set; }
 } 

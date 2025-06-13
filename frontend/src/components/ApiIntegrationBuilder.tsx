@@ -18,23 +18,42 @@ import {
   Alert
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { apiEndpoints, ApiEndpoint } from '../services/api';
+import { apiEndpoints, ApiEndpoint, apiIntegrations, ApiIntegration } from '../services/api';
+import { api } from '../services/api';
 
 interface ApiIntegrationBuilderProps {
-  onSave: (name: string, connections: { apiEndpointId: number; sequenceNumber: number }[]) => void;
+  integrationId?: number;
 }
 
-const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ onSave }) => {
+interface ExecutionResult {
+  integrationId: number;
+  steps: Array<{
+    apiEndpointId: number;
+    statusCode: number;
+    runTime: number;
+  }>;
+}
+
+export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ integrationId }) => {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
   const [integrationName, setIntegrationName] = useState('');
   const [connections, setConnections] = useState<{ apiEndpointId: number; sequenceNumber: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [integration, setIntegration] = useState<ApiIntegration | null>(null);
+  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
 
   useEffect(() => {
     fetchEndpoints();
-  }, []);
+    if (integrationId) {
+      const fetchIntegration = async () => {
+        const response = await api.get(`/api/apiintegrations/${integrationId}`);
+        setIntegration(response.data);
+      };
+      fetchIntegration();
+    }
+  }, [integrationId]);
 
   const fetchEndpoints = async () => {
     try {
@@ -70,7 +89,7 @@ const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ onSave })
     })));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!integrationName.trim()) {
       setError('Please enter an integration name');
       return;
@@ -79,7 +98,47 @@ const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ onSave })
       setError('Please add at least one API endpoint');
       return;
     }
-    onSave(integrationName, connections);
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Use apiIntegrations service instead of raw api
+      const savedIntegration = await apiIntegrations.create(
+        integrationName,
+        connections.map((conn, index) => ({
+          apiEndpointId: conn.apiEndpointId,
+          sequenceNumber: index + 1
+        }))
+      );
+
+      console.log('Integration saved:', savedIntegration);
+      
+      // Show success message
+      setError(null);
+      alert('Integration saved successfully!');
+      
+      // Clear the form
+      setIntegrationName('');
+      setConnections([]);
+      
+      // If we're in edit mode, update the integration state
+      if (integrationId) {
+        setIntegration(savedIntegration);
+      }
+    } catch (err) {
+      console.error('Error saving integration:', err);
+      setError('Failed to save integration. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRun = async () => {
+    if (integrationId) {
+      const response = await api.post(`/api/apiintegrations/${integrationId}/execute`);
+      setExecutionResult(response.data);
+    }
   };
 
   return (
@@ -162,6 +221,27 @@ const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ onSave })
         >
           {loading ? <CircularProgress size={24} /> : 'Save Integration'}
         </Button>
+
+        {integration && (
+          <div className="mt-4">
+            <h2 className="text-xl font-semibold">{integration.name}</h2>
+            <p>Connections: {integration.connections.length}</p>
+            <button onClick={handleRun} className="bg-green-500 text-white px-4 py-2 rounded mt-4">
+              Run
+            </button>
+            {executionResult && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold">Execution Results</h3>
+                {executionResult.steps.map((step, index) => (
+                  <div key={index} className="border p-2 mt-2">
+                    <p>Step {index + 1}: Status Code {step.statusCode}</p>
+                    <p>Run Time: {step.runTime}ms</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Paper>
     </Box>
   );

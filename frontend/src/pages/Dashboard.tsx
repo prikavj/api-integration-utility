@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/api';
-import ApiIntegrations from '../components/ApiIntegrations';
-import ApiIntegrationBuilder from '../components/ApiIntegrationBuilder';
-import { apiIntegrations } from '../services/api';
+import { ApiIntegrations } from './ApiIntegrations';
+import { ApiIntegrationBuilder } from '../components/ApiIntegrationBuilder';
+import { Box, Container, Typography } from '@mui/material';
 
 interface DashboardProps {
   setIsAuthenticated: (value: boolean) => void;
@@ -69,11 +69,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
             }}>
               User Profile
             </h2>
-            
             {loading && (
               <p style={{ color: '#6b7280' }}>Loading profile...</p>
             )}
-            
             {error && (
               <div style={{
                 padding: '1rem',
@@ -85,7 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
                 {error}
               </div>
             )}
-            
             {userProfile && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{
@@ -121,25 +118,10 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
             )}
           </div>
         );
-      
       case 'api-integrations':
         return <ApiIntegrations />;
-      
       case 'integration-builder':
-        return (
-          <ApiIntegrationBuilder
-            onSave={async (name, connections) => {
-              try {
-                const integration = await apiIntegrations.create(name, connections);
-                console.log('Integration created:', integration);
-                // You can add a success message or redirect here
-              } catch (error) {
-                console.error('Error creating integration:', error);
-              }
-            }}
-          />
-        );
-      
+        return <ApiIntegrationBuilder />;
       default:
         return null;
     }
@@ -191,7 +173,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
           ))}
         </nav>
       </div>
-
       {/* Main Content */}
       <div style={{ flex: 1 }}>
         {/* Header */}
@@ -234,7 +215,6 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
             Logout
           </button>
         </header>
-
         {/* Main Content Area */}
         <main style={{ padding: '2rem' }}>
           {renderContent()}
