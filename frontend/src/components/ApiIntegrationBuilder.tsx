@@ -15,7 +15,8 @@ import {
   ListItemSecondaryAction,
   IconButton,
   CircularProgress,
-  Alert
+  Alert,
+  Stack
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { apiEndpoints, ApiEndpoint, apiIntegrations, ApiIntegration } from '../services/api';
@@ -45,9 +46,12 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
   const [integration, setIntegration] = useState<ApiIntegration | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [integrations, setIntegrations] = useState<ApiIntegration[]>([]);
+  const [selectedIntegrationId, setSelectedIntegrationId] = useState<number | ''>('');
 
   useEffect(() => {
     fetchEndpoints();
+    fetchIntegrations();
     if (integrationId) {
       const fetchIntegration = async () => {
         const response = await api.get(`/api/apiintegrations/${integrationId}`);
@@ -66,6 +70,46 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
     } catch (err) {
       console.error('Error fetching endpoints:', err);
       setError('Failed to fetch API endpoints');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchIntegrations = async () => {
+    try {
+      const data = await apiIntegrations.getAll();
+      setIntegrations(data);
+    } catch (err) {
+      console.error('Error fetching integrations:', err);
+      setError('Failed to fetch integrations');
+    }
+  };
+
+  const handleIntegrationSelect = (integrationId: number) => {
+    const selectedIntegration = integrations.find(i => i.id === integrationId);
+    if (selectedIntegration) {
+      setIntegrationName(selectedIntegration.name);
+      setConnections(selectedIntegration.connections.map(conn => ({
+        apiEndpointId: conn.apiEndpointId,
+        sequenceNumber: conn.sequenceNumber
+      })));
+      setSelectedIntegrationId(integrationId);
+    }
+  };
+
+  const handleDeleteIntegration = async () => {
+    if (!selectedIntegrationId) return;
+
+    try {
+      setLoading(true);
+      await api.delete(`/api/apiintegrations/${selectedIntegrationId}`);
+      setSuccessMessage('Integration deleted successfully');
+      setIntegrationName('');
+      setConnections([]);
+      setSelectedIntegrationId('');
+      fetchIntegrations();
+    } catch (err) {
+      setError('Failed to delete integration');
     } finally {
       setLoading(false);
     }
@@ -105,16 +149,32 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
       setLoading(true);
       setError(null);
       setSuccessMessage(null);
-      const response = await api.post('/api/apiintegrations', {
-        name: integrationName,
-        connections: connections.map((conn, index) => ({
-          apiEndpointId: conn.apiEndpointId,
-          sequenceNumber: index + 1
-        }))
-      });
-      setSuccessMessage('Integration saved successfully!');
+
+      const connectionsWithSequence = connections.map((conn, index) => ({
+        apiEndpointId: conn.apiEndpointId,
+        sequenceNumber: index + 1
+      }));
+
+      if (selectedIntegrationId) {
+        // Update existing integration
+        await api.put(`/api/apiintegrations/${selectedIntegrationId}`, {
+          name: integrationName,
+          connections: connectionsWithSequence
+        });
+        setSuccessMessage('Integration updated successfully!');
+      } else {
+        // Create new integration
+        await api.post('/api/apiintegrations', {
+          name: integrationName,
+          connections: connectionsWithSequence
+        });
+        setSuccessMessage('Integration saved successfully!');
+      }
+
       setIntegrationName('');
       setConnections([]);
+      setSelectedIntegrationId('');
+      fetchIntegrations();
     } catch (err: any) {
       if (err.response?.status === 400 && err.response?.data?.includes('already exists')) {
         setError('An integration with this name already exists');
@@ -136,10 +196,28 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
-        Create API Integration
+        {selectedIntegrationId ? 'Edit Integration' : 'Create API Integration'}
       </Typography>
 
       <Paper sx={{ p: 2, mb: 3 }}>
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel>Select Existing Integration</InputLabel>
+          <Select
+            value={selectedIntegrationId}
+            onChange={(e) => handleIntegrationSelect(e.target.value as number)}
+            label="Select Existing Integration"
+          >
+            <MenuItem value="">
+              <em>Create New Integration</em>
+            </MenuItem>
+            {integrations.map((integration) => (
+              <MenuItem key={integration.id} value={integration.id}>
+                {integration.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <TextField
           fullWidth
           label="Integration Name"
@@ -210,15 +288,27 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
           })}
         </List>
 
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSave}
-          disabled={loading || connections.length === 0 || !integrationName.trim()}
-          sx={{ mt: 2 }}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Save Integration'}
-        </Button>
+        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSave}
+            disabled={loading || connections.length === 0 || !integrationName.trim()}
+          >
+            {loading ? <CircularProgress size={24} /> : (selectedIntegrationId ? 'Update Integration' : 'Save Integration')}
+          </Button>
+          
+          {selectedIntegrationId && (
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleDeleteIntegration}
+              disabled={loading}
+            >
+              Delete Integration
+            </Button>
+          )}
+        </Stack>
 
         {integration && (
           <div className="mt-4">

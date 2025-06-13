@@ -165,6 +165,64 @@ public class ApiIntegrationsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ApiIntegrationResponseDto>> Update(int id, ApiIntegrationDto dto)
+    {
+        var integration = await _context.ApiIntegrations
+            .Include(i => i.Connections)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (integration == null)
+            return NotFound();
+
+        // Check if name is being changed and if it conflicts with another integration
+        if (integration.Name.ToLower() != dto.Name.ToLower() &&
+            await _context.ApiIntegrations.AnyAsync(i => i.Id != id && i.Name.ToLower() == dto.Name.ToLower()))
+        {
+            return BadRequest($"An integration with the name '{dto.Name}' already exists.");
+        }
+
+        integration.Name = dto.Name;
+        integration.LastModifiedAt = DateTime.UtcNow;
+
+        // Remove existing connections
+        _context.ApiIntegrationConnections.RemoveRange(integration.Connections);
+
+        // Add new connections
+        foreach (var conn in dto.Connections)
+        {
+            _context.ApiIntegrationConnections.Add(new ApiIntegrationConnection
+            {
+                ApiIntegrationId = integration.Id,
+                ApiEndpointId = conn.ApiEndpointId,
+                SequenceNumber = conn.SequenceNumber
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        var response = await GetIntegrationWithDetails(integration.Id);
+        return Ok(response);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var integration = await _context.ApiIntegrations
+            .Include(i => i.Connections)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (integration == null)
+            return NotFound();
+
+        // Remove all connections first (due to foreign key constraints)
+        _context.ApiIntegrationConnections.RemoveRange(integration.Connections);
+        _context.ApiIntegrations.Remove(integration);
+        
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     private async Task<ApiIntegrationResponseDto> GetIntegrationWithDetails(int id)
     {
         var integration = await _context.ApiIntegrations

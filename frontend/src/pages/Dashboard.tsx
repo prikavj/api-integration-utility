@@ -47,8 +47,8 @@ const Dashboard: React.FC<DashboardProps> = ({ setIsAuthenticated }) => {
 
   const menuItems = [
     { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'api-integrations', label: 'API Integrations', icon: '🔌' },
     { id: 'integration-builder', label: 'Integration Builder', icon: '⚙️' },
+    { id: 'api-integrations', label: 'API Integrations', icon: '🔌' },
   ];
 
   const renderContent = () => {
