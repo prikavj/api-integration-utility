@@ -94,28 +94,61 @@ public class ApiIntegrationsController : ControllerBase
             Steps = new List<ExecutionStep>()
         };
 
+        using var client = new HttpClient();
+        
+        // Configure for localhost calls
+        client.BaseAddress = new Uri("http://localhost:5001");
+        
+        // Add the JWT token from the current request to the client
+        var authHeader = Request.Headers["Authorization"].ToString();
+        if (!string.IsNullOrEmpty(authHeader))
+        {
+            client.DefaultRequestHeaders.Add("Authorization", authHeader);
+        }
+
         foreach (var conn in integration.Connections.OrderBy(c => c.SequenceNumber))
         {
             var startTime = DateTime.UtcNow;
-            var response = await ExecuteApiEndpoint(conn.ApiEndpoint);
-            var endTime = DateTime.UtcNow;
-
-            result.Steps.Add(new ExecutionStep
+            
+            try
             {
-                ApiEndpointId = conn.ApiEndpointId,
-                StatusCode = (int)response.StatusCode,
-                RunTime = (endTime - startTime).TotalMilliseconds
-            });
+                var path = conn.ApiEndpoint.Url.StartsWith("/") ? conn.ApiEndpoint.Url : "/" + conn.ApiEndpoint.Url;
+                var fullUrl = $"{client.BaseAddress}{path}";
+                Console.WriteLine($"Executing API call to: {fullUrl} with method: {conn.ApiEndpoint.Method}");
+                
+                var request = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
+                var response = await client.SendAsync(request);
+                
+                Console.WriteLine($"API call completed. Status code: {response.StatusCode}");
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Response content: {content}");
+                
+                result.Steps.Add(new ExecutionStep
+                {
+                    ApiEndpointId = conn.ApiEndpointId,
+                    StatusCode = (int)response.StatusCode,
+                    RunTime = (DateTime.UtcNow - startTime).TotalMilliseconds
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error executing API call to {conn.ApiEndpoint.Url}: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                
+                // If the API call fails, add a step with error status
+                result.Steps.Add(new ExecutionStep
+                {
+                    ApiEndpointId = conn.ApiEndpointId,
+                    StatusCode = 500, // Internal Server Error
+                    RunTime = (DateTime.UtcNow - startTime).TotalMilliseconds
+                });
+            }
+
+            // Wait for 2 seconds before the next API call
+            await Task.Delay(2000);
         }
 
-        return result;
-    }
-
-    private async Task<HttpResponseMessage> ExecuteApiEndpoint(ApiEndpoint endpoint)
-    {
-        using var client = new HttpClient();
-        var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), endpoint.Url);
-        return await client.SendAsync(request);
+        return Ok(result);
     }
 
     private async Task<ApiIntegrationResponseDto> GetIntegrationWithDetails(int id)
@@ -139,21 +172,24 @@ public class ApiIntegrationsController : ControllerBase
             Name = integration.Name,
             CreatedAt = integration.CreatedAt,
             LastModifiedAt = integration.LastModifiedAt,
-            Connections = integration.Connections.Select(c => new ApiIntegrationConnectionResponseDto
-            {
-                Id = c.Id,
-                ApiEndpointId = c.ApiEndpointId,
-                SequenceNumber = c.SequenceNumber,
-                ApiEndpoint = new ApiEndpointResponseDto
+            Connections = integration.Connections
+                .OrderBy(c => c.SequenceNumber)
+                .Select(c => new ApiIntegrationConnectionResponseDto
                 {
-                    Id = c.ApiEndpoint.Id,
-                    Name = c.ApiEndpoint.Name,
-                    Url = c.ApiEndpoint.Url,
-                    Method = c.ApiEndpoint.Method,
-                    Description = c.ApiEndpoint.Description,
-                    Category = c.ApiEndpoint.Category
-                }
-            }).ToList()
+                    Id = c.Id,
+                    ApiEndpointId = c.ApiEndpointId,
+                    SequenceNumber = c.SequenceNumber,
+                    ApiEndpoint = new ApiEndpointResponseDto
+                    {
+                        Id = c.ApiEndpoint.Id,
+                        Name = c.ApiEndpoint.Name,
+                        Url = c.ApiEndpoint.Url,
+                        Method = c.ApiEndpoint.Method,
+                        Description = c.ApiEndpoint.Description,
+                        Category = c.ApiEndpoint.Category
+                    }
+                })
+                .ToList()
         };
     }
 }
