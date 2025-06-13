@@ -42,7 +42,7 @@ const ApiIntegrations: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<any>(null);
-  const [token, setToken] = useState<string>('');
+  const [token, setToken] = useState<string>(sessionStorage.getItem('token') || '');
   const [parameters, setParameters] = useState<Record<string, string>>({});
   const [newIntegrationName, setNewIntegrationName] = useState('');
   const [selectedEndpoints, setSelectedEndpoints] = useState<{ apiEndpointId: number; sequenceNumber: number }[]>([]);
@@ -125,8 +125,13 @@ const ApiIntegrations: React.FC = () => {
   };
 
   const handleExecuteIntegration = async () => {
-    if (!selectedIntegration || !token) {
-      console.log('Cannot execute: missing integration or token', { selectedIntegration, token });
+    if (!selectedIntegration) {
+      console.log('Cannot execute: missing integration');
+      return;
+    }
+
+    if (!token) {
+      setError('Please enter a token to execute integrations');
       return;
     }
 
@@ -137,7 +142,6 @@ const ApiIntegrations: React.FC = () => {
     try {
       console.log('Starting integration execution...');
       console.log('Integration:', selectedIntegration);
-      console.log('Token:', token);
       
       // Collect all parameters from the selected integration's endpoints
       const allParameters: Record<string, string> = {};
@@ -312,17 +316,19 @@ const ApiIntegrations: React.FC = () => {
               type="password"
               value={token}
               onChange={(e) => {
-                console.log('Token changed:', e.target.value);
-                setToken(e.target.value);
+                const newToken = e.target.value;
+                setToken(newToken);
+                sessionStorage.setItem('token', newToken);
               }}
-              sx={{ mb: 2 }}
+              sx={{ mb: 2, width: '300px' }}
+              placeholder="Enter your API token"
+              helperText="Token will be masked for security"
             />
             <Button
               variant="contained"
               color="primary"
               onClick={() => {
                 console.log('Execute button clicked');
-                console.log('Current token:', token);
                 handleExecuteIntegration();
               }}
               disabled={loading || !token}

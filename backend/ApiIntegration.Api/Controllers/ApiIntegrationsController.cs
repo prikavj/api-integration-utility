@@ -125,8 +125,9 @@ public class ApiIntegrationsController : ControllerBase
                     }
                 }
                 
-                path = path.StartsWith("/") ? path : "/" + path;
-                var fullUrl = $"{client.BaseAddress}{path}";
+                // Ensure path starts with a single slash
+                path = path.TrimStart('/');
+                var fullUrl = $"{client.BaseAddress}/{path}";
                 Console.WriteLine($"Executing API call to: {fullUrl} with method: {conn.ApiEndpoint.Method}");
                 
                 var httpRequest = new HttpRequestMessage(new HttpMethod(conn.ApiEndpoint.Method), path);
