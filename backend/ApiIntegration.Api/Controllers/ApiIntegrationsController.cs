@@ -18,9 +18,9 @@ public class ApiIntegrationsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ApiIntegration.Api.Models.ApiIntegration>> Create(ApiIntegrationDto dto)
+    public async Task<ActionResult<ApiIntegrationResponseDto>> Create(ApiIntegrationDto dto)
     {
-        var integration = new ApiIntegration.Api.Models.ApiIntegration
+        var integration = new Models.ApiIntegration
         {
             Name = dto.Name,
             CreatedAt = DateTime.UtcNow,
@@ -42,28 +42,33 @@ public class ApiIntegrationsController : ControllerBase
         }
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetById), new { id = integration.Id }, integration);
+        var response = await GetIntegrationWithDetails(integration.Id);
+        return CreatedAtAction(nameof(GetById), new { id = integration.Id }, response);
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ApiIntegration.Api.Models.ApiIntegration>>> GetAll()
+    public async Task<ActionResult<IEnumerable<ApiIntegrationResponseDto>>> GetAll()
     {
-        return await _context.ApiIntegrations
+        var integrations = await _context.ApiIntegrations
             .Include(i => i.Connections)
+            .ThenInclude(c => c.ApiEndpoint)
             .ToListAsync();
+
+        return integrations.Select(i => MapToResponseDto(i)).ToList();
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiIntegration.Api.Models.ApiIntegration>> GetById(int id)
+    public async Task<ActionResult<ApiIntegrationResponseDto>> GetById(int id)
     {
         var integration = await _context.ApiIntegrations
             .Include(i => i.Connections)
+            .ThenInclude(c => c.ApiEndpoint)
             .FirstOrDefaultAsync(i => i.Id == id);
 
         if (integration == null)
             return NotFound();
 
-        return integration;
+        return MapToResponseDto(integration);
     }
 
     [HttpPost("{id}/execute")]
@@ -106,6 +111,45 @@ public class ApiIntegrationsController : ControllerBase
         var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), endpoint.Url);
         return await client.SendAsync(request);
     }
+
+    private async Task<ApiIntegrationResponseDto> GetIntegrationWithDetails(int id)
+    {
+        var integration = await _context.ApiIntegrations
+            .Include(i => i.Connections)
+            .ThenInclude(c => c.ApiEndpoint)
+            .FirstOrDefaultAsync(i => i.Id == id);
+
+        if (integration == null)
+            throw new KeyNotFoundException($"Integration with ID {id} not found");
+
+        return MapToResponseDto(integration);
+    }
+
+    private static ApiIntegrationResponseDto MapToResponseDto(Models.ApiIntegration integration)
+    {
+        return new ApiIntegrationResponseDto
+        {
+            Id = integration.Id,
+            Name = integration.Name,
+            CreatedAt = integration.CreatedAt,
+            LastModifiedAt = integration.LastModifiedAt,
+            Connections = integration.Connections.Select(c => new ApiIntegrationConnectionResponseDto
+            {
+                Id = c.Id,
+                ApiEndpointId = c.ApiEndpointId,
+                SequenceNumber = c.SequenceNumber,
+                ApiEndpoint = new ApiEndpointResponseDto
+                {
+                    Id = c.ApiEndpoint.Id,
+                    Name = c.ApiEndpoint.Name,
+                    Url = c.ApiEndpoint.Url,
+                    Method = c.ApiEndpoint.Method,
+                    Description = c.ApiEndpoint.Description,
+                    Category = c.ApiEndpoint.Category
+                }
+            }).ToList()
+        };
+    }
 }
 
 public class ApiIntegrationDto
@@ -118,6 +162,33 @@ public class ApiIntegrationConnectionDto
 {
     public int ApiEndpointId { get; set; }
     public int SequenceNumber { get; set; }
+}
+
+public class ApiIntegrationResponseDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+    public List<ApiIntegrationConnectionResponseDto> Connections { get; set; } = new();
+}
+
+public class ApiIntegrationConnectionResponseDto
+{
+    public int Id { get; set; }
+    public int ApiEndpointId { get; set; }
+    public int SequenceNumber { get; set; }
+    public ApiEndpointResponseDto ApiEndpoint { get; set; } = null!;
+}
+
+public class ApiEndpointResponseDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string Method { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
 }
 
 public class ExecutionResult

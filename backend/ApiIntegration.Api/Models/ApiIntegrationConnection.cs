@@ -14,10 +14,10 @@ public class ApiIntegrationConnection
     [Required]
     public int SequenceNumber { get; set; }
 
-    // Navigation properties
+    // Navigation properties - using virtual for lazy loading
     [ForeignKey("ApiIntegrationId")]
-    public ApiIntegration ApiIntegration { get; set; } = null!;
+    public virtual ApiIntegration ApiIntegration { get; set; } = null!;
     
     [ForeignKey("ApiEndpointId")]
-    public ApiEndpoint ApiEndpoint { get; set; } = null!;
+    public virtual ApiEndpoint ApiEndpoint { get; set; } = null!;
 } 

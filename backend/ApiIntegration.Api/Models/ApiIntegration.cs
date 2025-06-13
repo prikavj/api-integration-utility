@@ -14,6 +14,6 @@ public class ApiIntegration
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastModifiedAt { get; set; }
 
-    // Navigation property
-    public ICollection<ApiIntegrationConnection> Connections { get; set; } = new List<ApiIntegrationConnection>();
+    // Navigation property - using virtual for lazy loading
+    public virtual ICollection<ApiIntegrationConnection> Connections { get; set; } = new List<ApiIntegrationConnection>();
 } 

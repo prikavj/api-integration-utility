@@ -18,96 +18,71 @@ import {
   Alert,
   Chip,
   SelectChangeEvent,
-  TextField,
   Stack
 } from '@mui/material';
-import { apiEndpoints, ApiEndpoint } from '../services/api';
-
-const extractPathParams = (url: string): string[] => {
-  const matches = url.match(/{(.*?)}/g);
-  return matches ? matches.map(m => m.replace(/[{}]/g, '')) : [];
-};
+import { apiIntegrations, ApiIntegration, apiEndpoints, ApiEndpoint } from '../services/api';
 
 const ApiIntegrations: React.FC = () => {
+  const [integrations, setIntegrations] = useState<ApiIntegration[]>([]);
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
-  const [selectedEndpoint, setSelectedEndpoint] = useState<ApiEndpoint | null>(null);
+  const [selectedIntegration, setSelectedIntegration] = useState<ApiIntegration | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiResponse, setApiResponse] = useState<any>(null);
-  const [responseTime, setResponseTime] = useState<number | null>(null);
-  const [paramValues, setParamValues] = useState<{ [key: string]: string }>({});
-  const [pathParams, setPathParams] = useState<string[]>([]);
+  const [executionResult, setExecutionResult] = useState<any>(null);
 
   useEffect(() => {
+    fetchIntegrations();
     fetchEndpoints();
   }, []);
 
-  useEffect(() => {
-    if (selectedEndpoint) {
-      const params = extractPathParams(selectedEndpoint.url);
-      setPathParams(params);
-      // Reset param values when endpoint changes
-      setParamValues(params.reduce((acc, p) => ({ ...acc, [p]: '' }), {}));
-    } else {
-      setPathParams([]);
-      setParamValues({});
+  const fetchIntegrations = async () => {
+    try {
+      setLoading(true);
+      const data = await apiIntegrations.getAll();
+      setIntegrations(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching integrations:', err);
+      setError('Failed to fetch API integrations');
+    } finally {
+      setLoading(false);
     }
-  }, [selectedEndpoint]);
+  };
 
   const fetchEndpoints = async () => {
     try {
-      setLoading(true);
       const data = await apiEndpoints.getAll();
       setEndpoints(data);
-      setError(null);
     } catch (err) {
       console.error('Error fetching endpoints:', err);
-      setError('Failed to fetch API endpoints');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleEndpointChange = (event: SelectChangeEvent<number>) => {
-    const endpointId = event.target.value as number;
-    const endpoint = endpoints.find(ep => ep.id === endpointId) || null;
-    setSelectedEndpoint(endpoint);
-    setApiResponse(null);
-    setResponseTime(null);
+  const handleIntegrationChange = (event: SelectChangeEvent<number>) => {
+    const integrationId = event.target.value as number;
+    const integration = integrations.find(i => i.id === integrationId) || null;
+    setSelectedIntegration(integration);
+    setExecutionResult(null);
   };
 
-  const handleParamChange = (param: string, value: string) => {
-    setParamValues(prev => ({ ...prev, [param]: value }));
-  };
-
-  const handleRunApi = async () => {
-    if (!selectedEndpoint) return;
-
-    // Substitute path params
-    let url = selectedEndpoint.url;
-    pathParams.forEach(param => {
-      url = url.replace(`{${param}}`, paramValues[param] || '');
-    });
+  const handleExecuteIntegration = async () => {
+    if (!selectedIntegration) return;
 
     try {
       setLoading(true);
       setError(null);
-      setApiResponse(null);
-      setResponseTime(null);
-
-      const startTime = performance.now();
-      const response = await apiEndpoints.execute({ ...selectedEndpoint, url });
-      const endTime = performance.now();
-
-      setApiResponse(response.data);
-      setResponseTime(endTime - startTime);
+      const result = await apiIntegrations.execute(selectedIntegration.id);
+      setExecutionResult(result);
     } catch (err: any) {
-      console.error('Error executing API:', err);
-      setError(err.response?.data?.message || 'Failed to execute API');
-      setApiResponse(err.response?.data || null);
+      console.error('Error executing integration:', err);
+      setError(err.response?.data?.message || 'Failed to execute integration');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getEndpointDetails = (endpointId: number) => {
+    return endpoints.find(ep => ep.id === endpointId);
   };
 
   return (
@@ -116,121 +91,111 @@ const ApiIntegrations: React.FC = () => {
         API Integrations
       </Typography>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
       <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Select API Endpoint</InputLabel>
+        <InputLabel>Select Integration</InputLabel>
         <Select
-          value={selectedEndpoint?.id || ''}
-          onChange={handleEndpointChange}
-          label="Select API Endpoint"
+          value={selectedIntegration?.id || ''}
+          onChange={handleIntegrationChange}
+          label="Select Integration"
         >
-          {endpoints.map((endpoint) => (
-            <MenuItem key={endpoint.id} value={endpoint.id}>
-              {endpoint.name}
+          {integrations.map((integration) => (
+            <MenuItem key={integration.id} value={integration.id}>
+              {integration.name}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
 
-      {selectedEndpoint && (
-        <TableContainer component={Paper} sx={{ mb: 3 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Property</TableCell>
-                <TableCell>Value</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>{selectedEndpoint.name}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>URL</TableCell>
-                <TableCell>{selectedEndpoint.url}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Method</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={selectedEndpoint.method} 
-                    color={
-                      selectedEndpoint.method === 'GET' ? 'success' :
-                      selectedEndpoint.method === 'POST' ? 'primary' :
-                      selectedEndpoint.method === 'PUT' ? 'warning' :
-                      selectedEndpoint.method === 'DELETE' ? 'error' : 'default'
-                    }
-                  />
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Description</TableCell>
-                <TableCell>{selectedEndpoint.description}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Category</TableCell>
-                <TableCell>{selectedEndpoint.category}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      {selectedIntegration && (
+        <>
+          <TableContainer component={Paper} sx={{ mb: 3 }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Sequence</TableCell>
+                  <TableCell>API Endpoint</TableCell>
+                  <TableCell>Method</TableCell>
+                  <TableCell>URL</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selectedIntegration.connections
+                  .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+                  .map((connection) => {
+                    const endpoint = getEndpointDetails(connection.apiEndpointId);
+                    return endpoint ? (
+                      <TableRow key={connection.apiEndpointId}>
+                        <TableCell>{connection.sequenceNumber}</TableCell>
+                        <TableCell>{endpoint.name}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={endpoint.method} 
+                            color={
+                              endpoint.method === 'GET' ? 'success' :
+                              endpoint.method === 'POST' ? 'primary' :
+                              endpoint.method === 'PUT' ? 'warning' :
+                              endpoint.method === 'DELETE' ? 'error' : 'default'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>{endpoint.url}</TableCell>
+                      </TableRow>
+                    ) : null;
+                  })}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-      {/* Parameter input fields if needed */}
-      {selectedEndpoint && pathParams.length > 0 && (
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          {pathParams.map(param => (
-            <TextField
-              key={param}
-              label={param}
-              value={paramValues[param] || ''}
-              onChange={e => handleParamChange(param, e.target.value)}
-              size="small"
-            />
-          ))}
-        </Stack>
-      )}
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleExecuteIntegration}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Execute Integration'}
+            </Button>
+          </Stack>
 
-      {selectedEndpoint && (
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleRunApi}
-            disabled={loading || (pathParams.length > 0 && pathParams.some(p => !paramValues[p]))}
-            sx={{ mb: 2 }}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Run API'}
-          </Button>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {apiResponse && (
-            <Paper sx={{ p: 2 }}>
+          {executionResult && (
+            <Paper sx={{ mt: 3, p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                API Response
+                Execution Results
               </Typography>
-              {responseTime && (
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Response Time: {responseTime.toFixed(2)}ms
-                </Typography>
-              )}
-              <pre style={{ 
-                backgroundColor: '#f5f5f5', 
-                padding: '1rem', 
-                borderRadius: '4px',
-                overflow: 'auto',
-                maxHeight: '300px'
-              }}>
-                {JSON.stringify(apiResponse, null, 2)}
-              </pre>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Step</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Response Time</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {executionResult.steps.map((step: any, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={step.statusCode} 
+                            color={step.statusCode >= 200 && step.statusCode < 300 ? 'success' : 'error'}
+                          />
+                        </TableCell>
+                        <TableCell>{step.runTime.toFixed(2)}ms</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </Paper>
           )}
-        </Box>
+        </>
       )}
     </Box>
   );

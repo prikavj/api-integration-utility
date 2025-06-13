@@ -102,32 +102,18 @@ export const ApiIntegrationBuilder: React.FC<ApiIntegrationBuilderProps> = ({ in
     try {
       setLoading(true);
       setError(null);
-      
-      // Use apiIntegrations service instead of raw api
-      const savedIntegration = await apiIntegrations.create(
-        integrationName,
-        connections.map((conn, index) => ({
+      const response = await api.post('/api/apiintegrations', {
+        name: integrationName,
+        connections: connections.map((conn, index) => ({
           apiEndpointId: conn.apiEndpointId,
           sequenceNumber: index + 1
         }))
-      );
-
-      console.log('Integration saved:', savedIntegration);
-      
-      // Show success message
-      setError(null);
+      });
+      // If we get here, the request was successful (201 or 200)
       alert('Integration saved successfully!');
-      
-      // Clear the form
       setIntegrationName('');
       setConnections([]);
-      
-      // If we're in edit mode, update the integration state
-      if (integrationId) {
-        setIntegration(savedIntegration);
-      }
     } catch (err) {
-      console.error('Error saving integration:', err);
       setError('Failed to save integration. Please try again.');
     } finally {
       setLoading(false);
