@@ -1,0 +1,26 @@
+
+<html>
+<head>
+    <title>API Test Results</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; }
+        th { background: #eee; }
+        .pass { background: #cfc; }
+        .fail { background: #fcc; }
+    </style>
+</head>
+<body>
+    <h1>API Test Results - 2025-06-13 22:39:13</h1>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Method</th>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Response (truncated)</th>
+        </tr>
+<tr class='pass'><td>Register User</td><td>POST</td><td>http://localhost:5001/api/auth/register</td><td>200</td><td><pre>{"message":"Registration successful"}</pre></td></tr><tr class='pass'><td>Login User</td><td>POST</td><td>http://localhost:5001/api/auth/login</td><td>200</td><td><pre>{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoidGVzdHVzZXJfNXV4bnQ1dzUiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yM</pre></td></tr><tr class='pass'><td>Get User Profile</td><td>GET</td><td>http://localhost:5001/api/auth/profile</td><td>200</td><td><pre>{"id":6,"username":"testuser_5uxnt5w5","createdAt":"2025-06-14T02:39:13.133522Z"}</pre></td></tr><tr class='pass'><td>Get All People</td><td>GET</td><td>http://localhost:5001/api/person</td><td>200</td><td><pre>[{"id":"910ee6f3-af1e-4571-a531-c287ce006f5c","name":"Test User","email":"test@example.com","createdAt":"2025-06-14T02:30:17.44806Z"}]</pre></td></tr><tr class='pass'><td>Create Person</td><td>POST</td><td>http://localhost:5001/api/person</td><td>201</td><td><pre>{"id":"5576a05b-bf56-4d26-a40c-351aed54c101","name":"Test User","email":"test@example.com","createdAt":"2025-06-14T02:39:13.1761092Z","products":[]}</pre></td></tr><tr class='pass'><td>Get Person by ID</td><td>GET</td><td>http://localhost:5001/api/person/5576a05b-bf56-4d26-a40c-351aed54c101</td><td>200</td><td><pre>{"id":"5576a05b-bf56-4d26-a40c-351aed54c101","name":"Test User","email":"test@example.com","createdAt":"2025-06-14T02:39:13.176109Z","products":[]}</pre></td></tr><tr class='pass'><td>Update Person</td><td>PUT</td><td>http://localhost:5001/api/person/5576a05b-bf56-4d26-a40c-351aed54c101</td><td>204</td><td><pre></pre></td></tr><tr class='pass'><td>Get All Products</td><td>GET</td><td>http://localhost:5001/api/product</td><td>200</td><td><pre>[]</pre></td></tr><tr class='pass'><td>Create Product</td><td>POST</td><td>http://localhost:5001/api/product</td><td>201</td><td><pre>{"id":"ae9a4eac-b8f0-4250-8481-9b15d04724b6","name":"Test Product","price":10.0,"createdAt":"2025-06-14T02:39:13.1987951Z","personId":"5576a05b-bf56-4d26-a40c-351aed54c101"}</pre></td></tr><tr class='pass'><td>Get Product by ID</td><td>GET</td><td>http://localhost:5001/api/product/ae9a4eac-b8f0-4250-8481-9b15d04724b6</td><td>200</td><td><pre>{"id":"ae9a4eac-b8f0-4250-8481-9b15d04724b6","name":"Test Product","price":10.00,"createdAt":"2025-06-14T02:39:13.198795Z","personId":"5576a05b-bf56-4d26-a40c-351aed54c101"}</pre></td></tr><tr class='pass'><td>Update Product</td><td>PUT</td><td>http://localhost:5001/api/product/ae9a4eac-b8f0-4250-8481-9b15d04724b6</td><td>204</td><td><pre></pre></td></tr><tr class='pass'><td>Delete Product</td><td>DELETE</td><td>http://localhost:5001/api/product/ae9a4eac-b8f0-4250-8481-9b15d04724b6</td><td>204</td><td><pre></pre></td></tr><tr class='pass'><td>Delete Person</td><td>DELETE</td><td>http://localhost:5001/api/person/5576a05b-bf56-4d26-a40c-351aed54c101</td><td>204</td><td><pre></pre></td></tr><tr class='pass'><td>Health Check</td><td>GET</td><td>http://localhost:5001/api/health</td><td>200</td><td><pre>{"status":"healthy","timestamp":"2025-06-14T02:39:13.2293028Z"}</pre></td></tr>
+    </table>
+</body>
+</html>
