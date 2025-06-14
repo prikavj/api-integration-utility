@@ -107,6 +107,43 @@ The application comes pre-configured with several API endpoints:
 - PUT /api/product/{id} - Update product
 - DELETE /api/product/{id} - Delete product
 
+## Application Flow
+
+Here are some screenshots to illustrate the application flow:
+
+1. **Register** - User registration page.
+   ![Register](screenshots/1-Register.png)
+
+2. **Login** - User login page.
+   ![Login](screenshots/2-Login.png)
+
+3. **Dashboard** - Main dashboard after login.
+   ![Dashboard](screenshots/3-Dashboard.png)
+
+4. **Profile** - User profile page.
+   ![Profile](screenshots/4-Profile.png)
+
+5. **Create Integration Builder** - Interface for creating new API integrations.
+   ![Create Integration Builder](screenshots/5-Create_Integration-Builder.png)
+
+6. **Execute API Integration** - Page to execute API integrations.
+   ![Execute API Integration](screenshots/6-Execute_API-Integration.png)
+
+7. **Execution Results API Integration** - Results of API integration execution.
+   ![Execution Results API Integration](screenshots/7-Execution-Results_API-Integration.png)
+
+8. **Update Integration Builder** - Interface for updating existing API integrations.
+   ![Update Integration Builder](screenshots/8-Update_Integration-Builder.png)
+
+9. **Execution Results Updated API Integration** - Results of updated API integration execution.
+   ![Execution Results Updated API Integration](screenshots/9-Execution-Results_Updated-API-Integration.png)
+
+10. **Delete Integration Builder** - Interface for deleting API integrations.
+    ![Delete Integration Builder](screenshots/10-Delete_Integration-Builder.png)
+
+11. **Swagger** - Swagger UI for API documentation.
+    ![Swagger](screenshots/11-Swagger.png)
+
 ## Development
 
 ### Backend Development
