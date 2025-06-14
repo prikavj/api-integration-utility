@@ -7,11 +7,11 @@
     "createProduct": {
       "requires": [],
       "provides": {
-        "id": "createProduct.id"
+        "id": "id"
       }
     },
     "getProduct": {
-      "requires": ["createProduct.id"],
+      "requires": ["id"],
       "provides": {
         "id": "getProduct.id",
         "name": "getProduct.name",
@@ -21,13 +21,13 @@
       }
     },
     "updateProduct": {
-      "requires": ["createProduct.id"],
+      "requires": ["id"],
       "provides": {
         "id": "updateProduct.id"
       }
     },
     "deleteProduct": {
-      "requires": ["createProduct.id"],
+      "requires": ["id"],
       "provides": {}
     }
   },
@@ -39,11 +39,11 @@
     "createPerson": {
       "requires": [],
       "provides": {
-        "id": "createPerson.id"
+        "id": "id"
       }
     },
     "getPerson": {
-      "requires": ["createPerson.id"],
+      "requires": ["id"],
       "provides": {
         "id": "getPerson.id",
         "name": "getPerson.name",
@@ -53,13 +53,13 @@
       }
     },
     "updatePerson": {
-      "requires": ["createPerson.id"],
+      "requires": ["id"],
       "provides": {
         "id": "updatePerson.id"
       }
     },
     "deletePerson": {
-      "requires": ["createPerson.id"],
+      "requires": ["id"],
       "provides": {}
     }
   }

@@ -98,7 +98,7 @@ namespace ApiIntegration.Api.Controllers
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, new ProductDto
+            return StatusCode(StatusCodes.Status201Created, new ProductDto
             {
                 Id = product.Id,
                 Name = product.Name,

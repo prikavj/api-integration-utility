@@ -365,7 +365,7 @@ public class ApiIntegrationsController : ControllerBase
                     ExecutionTimeMs = executionTime
                 });
 
-                // Update context with provided values
+                // Update context with provided values only if the response was successful
                 if (response.IsSuccessStatusCode && mapping.Provides != null)
                 {
                     try
@@ -404,6 +404,10 @@ public class ApiIntegrationsController : ControllerBase
                         Console.WriteLine($"[API Chaining] Response content: {content}");
                         Console.WriteLine($"[API Chaining] Stack trace: {ex.StackTrace}");
                     }
+                }
+                else
+                {
+                    Console.WriteLine($"[API Chaining] Skipping context update due to non-success status code: {response.StatusCode}");
                 }
 
                 // Log current context state

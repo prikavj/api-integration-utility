@@ -102,7 +102,7 @@ namespace ApiIntegration.Api.Controllers
             _context.People.Add(person);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetPerson), new { id = person.Id }, new PersonDto
+            return StatusCode(StatusCodes.Status201Created, new PersonDto
             {
                 Id = person.Id,
                 Name = person.Name,
