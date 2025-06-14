@@ -8,6 +8,7 @@ A full-stack application for managing and testing API integrations, built with .
   - Secure login and registration
   - JWT-based authentication
   - Protected routes
+  - Password validation (minimum 5 characters, uppercase, lowercase, number, special character)
 
 - **API Management**
   - View and manage API endpoints

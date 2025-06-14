@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.RegularExpressions;
 
 namespace ApiIntegration.Api.Controllers;
 
@@ -32,6 +33,12 @@ public class AuthController : ControllerBase
         if (await _context.Users.AnyAsync(u => u.Username == request.Username))
         {
             return BadRequest("Username already exists");
+        }
+
+        // Validate password
+        if (!IsPasswordValid(request.Password))
+        {
+            return BadRequest("Password must be at least 5 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
         }
 
         var user = new User
@@ -127,6 +134,19 @@ public class AuthController : ControllerBase
         using var sha256 = SHA256.Create();
         var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
         return Convert.ToBase64String(hashedBytes);
+    }
+
+    private static bool IsPasswordValid(string password)
+    {
+        if (string.IsNullOrEmpty(password) || password.Length < 5)
+            return false;
+
+        var hasUpperChar = new Regex(@"[A-Z]+").IsMatch(password);
+        var hasLowerChar = new Regex(@"[a-z]+").IsMatch(password);
+        var hasNumber = new Regex(@"[0-9]+").IsMatch(password);
+        var hasSpecialChar = new Regex(@"[!@#$%^&*(),.?"":{}|<>]").IsMatch(password);
+
+        return hasUpperChar && hasLowerChar && hasNumber && hasSpecialChar;
     }
 }
 

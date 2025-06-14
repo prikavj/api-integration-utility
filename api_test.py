@@ -10,7 +10,7 @@ def random_username():
     return "testuser_" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
 USERNAME = random_username()
-PASSWORD = "testpass123"
+PASSWORD = "TestPass123!"  # Updated to meet password validation criteria
 
 ENDPOINTS = [
     {"name": "Register User", "method": "POST", "url": "/api/auth/register", "body": {"username": USERNAME, "password": PASSWORD}},
